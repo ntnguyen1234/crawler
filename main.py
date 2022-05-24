@@ -34,8 +34,8 @@ def main():
 
   current_folder, stats_file = PDFCrawling.pdf_collect(project_name, num_result, pdf_num)
   if is_colab:
-    print(f'\n\nResults are in folder: {str(current_folder).split("MyDrive")[1]}')
-    print(f'\n\nStats report is in folder: {str(stats_file).split("MyDrive")[1]}')
+    print(f'\nResults are in folder: {str(current_folder).split("MyDrive")[1]}')
+    print(f'Stats report is in folder: {str(stats_file).split("MyDrive")[1]}')
 
 if __name__ == '__main__':
   main()

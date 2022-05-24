@@ -172,7 +172,7 @@ class PDFCrawler(Crawler):
       pdf_info['size_ratio'] = pdf_info['total_size']/(pdf_info['num_img'] + 1e-6)
       temp.append(pdf_info)
     except Exception:
-      print('\nget_info ==========================================')
+      print('\n\nget_info ==========================================')
       print(traceback.format_exc())
       print('========================================================\n')
       return
@@ -181,7 +181,7 @@ class PDFCrawler(Crawler):
     search_urls = self.pdf_search(num_result)
     current_folder, urls_sort, required_name = super().collect(search_urls, project_name, self.params['type'])
     crawl_folder = current_folder.parents[0]
-    temp_folder = Path.cwd().joinpath('temp')
+    temp_folder = crawl_folder.joinpath('temp')
     temp_folder.mkdir(parents=True, exist_ok=True)
 
     manager = Manager()
