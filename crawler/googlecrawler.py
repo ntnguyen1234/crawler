@@ -116,7 +116,7 @@ class Crawler:
         'date'   : url['date'],
       })
     urls_sort = (sorted(urls_info, key = lambda k: -k['counter']))
-    all_urls.unlink()
+    Path(all_urls).unlink()
     return current_folder, urls_sort, required_name
 
 class PDFCrawler(Crawler):
