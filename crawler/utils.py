@@ -12,7 +12,7 @@ def create_folder(parent_dir):
   max_number = max([int(dir) for dir in folder_list if dir.isnumeric()])
   for i in range(1, max_number+1):
     temp_dir = parent_dir.joinpath(str(i))
-    if next(Path(temp_dir).iterdir(), None) == None or not temp_dir.is_dir():
+    if not temp_dir.is_dir() or next(Path(temp_dir).iterdir(), None) == None:
       return temp_dir
   return parent_dir.joinpath(f'{len(folder_list)+1}')
 
