@@ -9,7 +9,7 @@ class Serper:
     self.api_key = 'f65cba0d7b3288b4a6179dab3dfba7871a8ffe45e638b99ff5b8bf97ada2b622'
 
   def search(self, q: str, num_result: int=None, tbs: str=None):
-    self.get_api()
+    # self.get_api()
     params = {
       'engine' : self.engine,
       'api_key': self.api_key,

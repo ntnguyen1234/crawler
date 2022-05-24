@@ -1,8 +1,10 @@
 from crawler import *
+import json
 
 def main():
   num_result = 40
-  is_colab   = False
+  with open(Path.cwd().parents[0].joinpath('parameters.json'), 'r') as fr:
+    parameters = json.load(fr)
 
   project_name = loop_input('Project name (i.e. emmay):')
   print('\n')
@@ -26,6 +28,8 @@ def main():
   print('\n')
 
   GoogleSearcher = Serper('google')
+  GoogleSearcher.api_key = parameters['api_key']
+  is_colab = parameters['is_colab']
   PDFCrawling    = PDFCrawler(GoogleSearcher, required, das, is_colab)
 
   current_folder, stats_file = PDFCrawling.pdf_collect(project_name, num_result, pdf_num)
