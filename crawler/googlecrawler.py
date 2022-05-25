@@ -186,7 +186,7 @@ class PDFCrawler(Crawler):
       pdf_info['size_ratio'] = pdf_info['total_size']/(pdf_info['num_img'] + 1e-6)
       temp.append(pdf_info)
     except Exception:
-      print(f'\n\nget_info ==========================================\n {url=} \n')
+      print(f'\n\nget_info ==========================================\n url = {url} \n')
       print(traceback.format_exc())
       print('========================================================\n')
       return
