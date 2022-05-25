@@ -144,7 +144,7 @@ class PDFCrawler(Crawler):
   def pdf_search(self, num_result: int=40):
     return super().search(self.params, num_result)
 
-  def get_info(self, current_folder, temp: list, i: int, url: str):
+  def get_info(self, current_folder, temp: list, error_urls: list, i: int, url: str):
     try:
       content = super().fast_response(url['url'])
       if content == None: return
@@ -186,6 +186,7 @@ class PDFCrawler(Crawler):
       pdf_info['size_ratio'] = pdf_info['total_size']/(pdf_info['num_img'] + 1e-6)
       temp.append(pdf_info)
     except Exception:
+      error_urls.append(url['url'])
       print(f'\n\nget_info ==========================================\n url = {url} \n')
       print(traceback.format_exc())
       print('========================================================\n')
@@ -200,10 +201,11 @@ class PDFCrawler(Crawler):
 
     manager = Manager()
     temp = manager.list()
+    error_urls = manager.list()
 
     length = min(num_final, len(urls_sort))
     with tqdm_joblib(tqdm(total=length)) as _:
-      Parallel(n_jobs=-1, verbose=0)(delayed(self.get_info)(temp_folder, temp, i, url) for i, url in enumerate(urls_sort[:length]))
+      Parallel(n_jobs=-1, verbose=0)(delayed(self.get_info)(temp_folder, temp, error_urls, i, url) for i, url in enumerate(urls_sort[:length]))
 
     temp_modified = [{f'{k}_normalized': t[k]/(max([te[k] for te in temp]) + 1e-6) for k in t.keys() if k not in ['url', 'title', 'date', 'location']} for t in temp]
     for tm, te in zip(temp_modified, temp):
@@ -236,4 +238,9 @@ class PDFCrawler(Crawler):
         else:
           out_text += stats_output(url) + f'Date       : {url["date"]}\n\n'
       fw.write(out_text)
+    if list(error_urls) != []:
+      print(error_urls)
+      print('URL failed to get info:')
+      for error_url in error_urls:
+        print(error_url)
     return current_folder, stats_file
