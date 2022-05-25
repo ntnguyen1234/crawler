@@ -167,7 +167,7 @@ class PDFCrawler(Crawler):
       if pdf_info['title'] == '' or info.title == None:
         file_save = f'{i+1}'
       else:
-        file_save = f'{i+1} - {pdf_info["title"].replace("?","").replace(":","-")}'
+        file_save = f'{i+1} - {pdf_info["title"].replace("?","").replace(":","-").replace("/","-")}'
       file_location = f'{current_folder}/{file_save}.pdf'
       pdf_info['location'] = f'{file_save}.pdf'
 
