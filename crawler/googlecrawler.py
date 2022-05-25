@@ -227,7 +227,7 @@ class PDFCrawler(Crawler):
         if url['title'] == '' or url['title'] == None:
           file_save = f'{i+1}.pdf'
         else:
-          file_save = f'{i+1} - {url["title"].replace("?","").replace(":","-")}.pdf'
+          file_save = f'{i+1} - {url["title"].replace("?","").replace(":","-").replace("/","-")}.pdf'
         file_location = temp_folder.joinpath(url['location'])
         _ = file_location.rename(Path.cwd().joinpath(current_folder).joinpath(file_save))
         out_text += f'{i+1}. '
