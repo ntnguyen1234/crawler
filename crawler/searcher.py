@@ -21,7 +21,10 @@ class Serper:
     pages  = search.pagination()
     return pages
 
-  def normal(self, q: str, num_result: int=40, back: int=2):
-    year = int(date.today().strftime('%Y')) - back
-    tbs = f'cdr%3A1%2Ccd_min%3A01-01-{year}%2Ccd_max%3A'
+  def normal(self, q: str, num_result: int=40, back: int=2, has_tbs: bool=True):
+    if has_tbs:
+      year = int(date.today().strftime('%Y')) - back
+      tbs  = f'cdr%3A1%2Ccd_min%3A01-01-{year}%2Ccd_max%3A'
+    else:
+      tbs  = None 
     return self.search(q, num_result, tbs)

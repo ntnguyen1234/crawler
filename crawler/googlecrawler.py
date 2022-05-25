@@ -50,33 +50,47 @@ class Crawler:
       response.close()
       return content
 
+  def crawl_pages(self, pages, urls: list, num_page: int=1):
+    urls_temp = []
+    count_page = 1
+    for result in pages:
+      print(f"Current page: {result['serpapi_pagination']['current']}\n")
+
+      # Get original link result from search
+      for organic_result in result["organic_results"]:
+        url = {'url' : organic_result['link']}
+        if 'date' in organic_result.keys():
+          published_date = organic_result['date'].split(', ')[-1]
+          if published_date.isnumeric():
+            url['date'] = organic_result['date']
+          else:
+            url['date'] = ''
+        else:
+          url['date'] = ''
+        urls.append(url)
+        urls_temp.append(url)
+
+      count_page += 1
+      if count_page > num_page: break
+    return urls_temp
+
   def search(self, params: dict={'query': '', 'type': 'article'}, num_result: int=40, num_page: int=1) -> list:
     urls = []
     for req in self.required:
       for da in self.das:
-        count_page = 1
         q = f'{req} + "{da}"{params["query"]}'
         print(q)
         pages = self.searcher.normal(q, num_result)
-
-        for result in pages:
-          print(f"Current page: {result['serpapi_pagination']['current']}\n")
-
-          # Get original link result from search
-          for organic_result in result["organic_results"]:
-            url = {'url' : organic_result['link']}
-            if 'date' in organic_result.keys():
-              published_date = organic_result['date'].split(', ')[-1]
-              if published_date.isnumeric():
-                url['date'] = organic_result['date']
-              else:
-                url['date'] = ''
-            else:
-              url['date'] = ''
-            urls.append(url)
-
-          count_page += 1
-          if count_page > num_page: break
+        urls_temp = self.crawl_pages(pages, urls)
+        times = 0
+        while len(urls_temp) == 0:
+          if times == 0:
+            pages = self.searcher.normal(q, num_result=10)
+          elif times == 1:
+            pages = self.searcher.normal(q, num_result=10, has_tbs=False)
+          else: break
+          urls_temp = self.crawl_pages(pages, urls)
+          times += 1
     return urls
 
   def collect(self, search_urls: list, project_name: str, crawl_type: str='article'):
@@ -197,16 +211,16 @@ class PDFCrawler(Crawler):
         tm[k] = te[k]
       features = [tm[f'{k}_normalized'] for k in ['total_size', 'counter', 'num_page', 'num_img', 'img_ratio', 'size_ratio']]
       weights  = [0.3, 0.3, 0.1, 0.1, 0.1, 0.1]
-      tm['score'] = sum([w*f for w,f in zip(weights, features)])
+      tm['score'] = tm['num_img_normalized']*sum([w*f for w,f in zip(weights, features)])
 
     # urls_sort = (sorted(temp, key = lambda k: (-k['counter'], -k['num_page'])))
-    urls_sort = (sorted(temp_modified, key = lambda k: -k['score']))
+    urls_sort = (sorted(temp_modified, key = lambda k: (-k['score'], -k['counter'])))
 
     stats_file = f'{current_folder}/{current_time} {required_name} - stats report.txt'
     check_file(stats_file)
 
     with open(stats_file, 'a') as fw:
-      out_text = ''
+      out_text = f'F0 keywords     = {", ".join(self.required)}\nDeck Attributes = {", ".join(self.das)}\n\n'
       for i, url in enumerate(urls_sort):
         if url['title'] == '' or url['title'] == None:
           file_save = f'{i+1}.pdf'
@@ -219,9 +233,7 @@ class PDFCrawler(Crawler):
           out_text += f'{url["title"]} '
         if url['date'] == '':
           out_text += stats_output(url) + '\n\n'
-          # out_text += f'({url["url"]})\nCounter : {url["counter"]}\nPage num: {url["num_page"]}\n\n'
         else:
           out_text += stats_output(url) + f'Date       : {url["date"]}\n\n'
-          # out_text += f'({url["url"]})\nCounter : {url["counter"]}\nPage num: {url["num_page"]}\nDate    : {url["date"]}\n\n'
       fw.write(out_text)
     return current_folder, stats_file
