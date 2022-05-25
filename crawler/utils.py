@@ -1,9 +1,10 @@
 import pathlib
 from pathlib import Path
-from datetime import date
+from datetime import date, datetime
 
-global today
+global today, current_time
 today = date.today().strftime('%Y%m%d')
+current_time = datetime.now().strftime('[%Y%m%d-%H%M]')
 
 def create_folder(parent_dir):
   folder_list = [dir.parts[-1] for dir in parent_dir.iterdir() if dir.is_dir()]

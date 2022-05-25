@@ -88,11 +88,11 @@ class Crawler:
     crawltype_folder.mkdir(parents=True, exist_ok=True)
 
     required_name = ' - '.join([r.replace('"', '') for r in self.required])
-    required_folder = crawltype_folder.joinpath(f'{required_name}')
+    required_folder = crawltype_folder.joinpath(f'{current_time} {required_name}')
     required_folder.mkdir(parents=True, exist_ok=True)
 
-    current_folder = create_folder(required_folder)
-    current_folder.mkdir(parents=True, exist_ok=True)
+    # current_folder = create_folder(required_folder)
+    # current_folder.mkdir(parents=True, exist_ok=True)
 
     all_urls = f'[{today}] {crawl_type}.txt'
     check_file(all_urls)
@@ -117,7 +117,7 @@ class Crawler:
       })
     urls_sort = (sorted(urls_info, key = lambda k: -k['counter']))
     Path(all_urls).unlink()
-    return current_folder, urls_sort, required_name
+    return required_folder, urls_sort, required_name
 
 class PDFCrawler(Crawler):
   def __init__(self, searcher: Serper, required: list, das: list, is_colab: bool=False):
@@ -188,7 +188,7 @@ class PDFCrawler(Crawler):
     temp = manager.list()
 
     length = min(num_final, len(urls_sort))
-    with tqdm_joblib(tqdm(total=length)) as progress_bar:
+    with tqdm_joblib(tqdm(total=length)) as _:
       Parallel(n_jobs=-1, verbose=0)(delayed(self.get_info)(temp_folder, temp, i, url) for i, url in enumerate(urls_sort[:length]))
 
     temp_modified = [{f'{k}_normalized': t[k]/(max([te[k] for te in temp]) + 1e-6) for k in t.keys() if k not in ['url', 'title', 'date', 'location']} for t in temp]
@@ -202,7 +202,7 @@ class PDFCrawler(Crawler):
     # urls_sort = (sorted(temp, key = lambda k: (-k['counter'], -k['num_page'])))
     urls_sort = (sorted(temp_modified, key = lambda k: -k['score']))
 
-    stats_file = f'{crawl_folder}/[{today}] {required_name} - stats report.txt'
+    stats_file = f'{current_folder}/{current_time} {required_name} - stats report.txt'
     check_file(stats_file)
 
     with open(stats_file, 'a') as fw:
