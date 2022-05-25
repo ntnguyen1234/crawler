@@ -239,7 +239,6 @@ class PDFCrawler(Crawler):
           out_text += stats_output(url) + f'Date       : {url["date"]}\n\n'
       fw.write(out_text)
     if list(error_urls) != []:
-      print(error_urls)
       print('URL failed to get info:')
       for error_url in error_urls:
         print(error_url)
