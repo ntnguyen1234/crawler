@@ -43,11 +43,9 @@ def main():
       password = parameters['linkedin_pass'],
     )
     current_folder, stats_file = LinkedinCrawl.run(PDFCrawl, project_name, pdf_num)
-  print(current_folder)
-  print(stats_file)
-  # if is_colab:
-  #   print(f'\nResults are in folder: {str(current_folder).split("MyDrive")[1]}')
-  #   print(f'Stats report is in folder: {str(stats_file).split("MyDrive")[1]}')
+  if is_colab:
+    print(f'\nResults are in folder: {str(current_folder).split("MyDrive")[1]}')
+    print(f'Stats report is in folder: {str(stats_file).split("MyDrive")[1]}')
 
 if __name__ == '__main__':
   main()
