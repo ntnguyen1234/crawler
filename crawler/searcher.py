@@ -1,5 +1,5 @@
 from serpapi import GoogleSearch
-from datetime import date
+from crawler.utils import *
 
 class Serper:
   def __init__(self, engine: str):
