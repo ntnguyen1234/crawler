@@ -126,7 +126,7 @@ class Crawler:
 
   def initialize_process(self, current_folder, crawl_type: str='article'):
     temp_folder = current_folder.parents[0].joinpath('temp')
-    if crawl_type in ['pdf', 'linkedin']:
+    if crawl_type != 'article':
       temp_folder.mkdir(parents=True, exist_ok=True)
 
     manager = Manager()
@@ -148,7 +148,7 @@ class Crawler:
         if content_text.startswith('%PDF-'):
           if crawl_type != 'article':
             pdf_info = readwrite_pdf(content, current_folder, i, url)
-          urls_processing['pdf'].append(pdf_info)
+            urls_processing['pdf'].append(pdf_info)
         else:
           url['content']      = content
           url['content_text'] = content_text
