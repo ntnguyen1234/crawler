@@ -1,5 +1,4 @@
 import requests
-import tldextract
 from crawler.searcher import Serper
 from crawler.utils import *
 import urllib3
@@ -18,9 +17,6 @@ class Crawler:
 
       # Get original link result from search
       for organic_result in result["organic_results"]:
-        # if self.parameters['type'] == 'article':
-        #   ext = tldextract.extract(organic_result['link'])
-        #   if ext.registered_domain in special_domains: continue
         url = {'url' : organic_result['link']}
         if 'date' in organic_result.keys():
           published_date = organic_result['date'].split(', ')[-1]
