@@ -1,23 +1,26 @@
 import requests
-import traceback
+import tldextract
 from crawler.searcher import Serper
 from crawler.utils import *
+import urllib3
+from scrapingbee import ScrapingBeeClient
 
 class Crawler:
-  def __init__(self, searcher: Serper, required: list, das: list, is_colab: bool=False):
-    self.searcher = searcher
-    self.required = required
-    self.das      = das
-    self.is_colab = is_colab
+  def __init__(self, searcher: Serper, parameters: dict):
+    self.searcher   = searcher
+    self.parameters = parameters
 
-  def crawl_pages(self, pages, urls: list, num_page: int=1):
-    urls_temp = []
+  def crawl_pages(self, pages, urls: list, num_page: int=1) -> list:
+    urls_temp  = []
     count_page = 1
     for result in pages:
       print(f"Current page: {result['serpapi_pagination']['current']}\n")
 
       # Get original link result from search
       for organic_result in result["organic_results"]:
+        # if self.parameters['type'] == 'article':
+        #   ext = tldextract.extract(organic_result['link'])
+        #   if ext.registered_domain in special_domains: continue
         url = {'url' : organic_result['link']}
         if 'date' in organic_result.keys():
           published_date = organic_result['date'].split(', ')[-1]
@@ -34,14 +37,14 @@ class Crawler:
       if count_page > num_page: break
     return urls_temp
 
-  def search(self, params: dict={'query': '', 'type': 'article'}, num_result: int=40, num_page: int=1) -> list:
+  def search(self, query: str='', num_result: int=40, num_page: int=1) -> list:
     urls = []
-    for req in self.required:
-      for da in self.das:
-        q = f'{req} + "{da}"{params["query"]}'
+    for req in self.parameters['required']:
+      for da in self.parameters['das']:
+        q = f'{req} + "{da}"{query}'
         print(q)
         pages = self.searcher.normal(q, num_result)
-        urls_temp = self.crawl_pages(pages, urls)
+        urls_temp = self.crawl_pages(pages, urls, num_page)
         times = 0
         while len(urls_temp) == 0:
           if times == 0:
@@ -54,7 +57,7 @@ class Crawler:
     return urls
 
   def collect(self, search_urls: list, project_name: str, crawl_type: str='article'):
-    required_folder, required_name = set_folder(self.is_colab, project_name, crawl_type, self.required)
+    required_folder, required_name = set_folder(self.parameters['is_colab'], project_name, crawl_type, self.parameters['required'])
     
     all_urls = f'[{today}] {crawl_type}.txt'
     check_file(all_urls)
@@ -71,10 +74,11 @@ class Crawler:
     return required_folder, urls_sort, required_name
 
   def fast_response(self, url: str):
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     headers = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:100.0) Gecko/20100101 Firefox/100.0',
     }
-    response = requests.get(url, headers=headers, timeout=(5, 30), allow_redirects=True)
+    response = requests.get(url, headers=headers, timeout=30, allow_redirects=True, verify=False)
     response.encoding = 'utf-8'
     if response.status_code >= 400:
       response.close()
@@ -88,21 +92,102 @@ class Crawler:
       response.close()
       return final_url, content, content_text
 
-  def get_info(self, current_folder, urls_processing, i: int, url: dict, not_parallel: bool=True):
+  def scrapingbee(self, url: str):
+    headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:100.0) Gecko/20100101 Firefox/100.0',
+    }
+    client = ScrapingBeeClient(api_key=self.parameters['scrapingbee'])
+    response = client.get(
+      url,
+      params = {
+        'device'            : 'desktop',
+        'block_ads'         : True,
+        'json_response'     : True,
+        'render_js'         : True,
+        'window_width'      : 1920,
+        'window_height'     : 1080,
+      },
+      headers = headers,
+    )
+    res = json.loads(response.text)
+    return res['body']
+
+  def fallback_response(self, driver, url):
+    retry = 0
+    while retry < 3:
+      try:
+        driver.get(url)
+        retry = 3
+      except selenium.common.exceptions.WebDriverException:
+        retry += 1
+        if retry == 3: return None
+        time.sleep(3)
+    time.sleep(3)
+    with open('test.html', 'w') as fw:
+      fw.write(driver.page_source)
+    out = BeautifulSoup(driver.page_source, 'lxml')
+    return str(out)
+
+  def initialize_process(self, current_folder, crawl_type: str='article'):
+    temp_folder = current_folder.parents[0].joinpath('temp')
+    if crawl_type == 'pdf':
+      temp_folder.mkdir(parents=True, exist_ok=True)
+
+    manager = Manager()
+    urls_processing = {
+      'raw'    : manager.list(),
+      'doc'    : manager.list(),
+      'pdf'    : manager.list(),
+      'error'  : manager.list(),
+    }
+    return temp_folder, urls_processing
+
+  def get_info(self, urls_processing, i: int, url: dict, current_folder=None):
     try:
       final_url, content, content_text = self.fast_response(url['url'])
       if content == None: return
       else:
         if 'linkedin.com' in final_url: return
         url['url'] = final_url
-        if not content_text.startswith('%PDF-'):
-          urls_processing['doc'].append(url)
+        if content_text.startswith('%PDF-'):
+          pdf_info = readwrite_pdf(content, current_folder, i, url)
+          urls_processing['pdf'].append(pdf_info)
         else:
-            pdf_info = readwrite_pdf(content, current_folder, i, url)
-            urls_processing['pdf'].append(pdf_info)
+          url['content']      = content
+          url['content_text'] = content_text
+          urls_processing['raw'].append(url)
+          
     except Exception:
       urls_processing['error'].append(url)
-      print(url)
-      print(f'\n\nget_info ==========================================\n url = {url} \n')
+      print(f'\n\nget_info ==========================================\n\n{url}\n\n')
       print(traceback.format_exc())
       print('========================================================\n')
+
+  def process_urls(self, urls: list, project_name: str, crawl_type: str='article'):
+    current_folder, urls_sort, required_name = self.collect(urls, project_name, crawl_type)
+
+    length = len(urls_sort)
+    not_success = True
+    backend = 'loky'
+    while not_success:
+      try:
+        temp_folder, urls_processing = self.initialize_process(current_folder, crawl_type)
+        with tqdm_joblib(tqdm(desc='Processing URLs...', total=length)) as _:
+          Parallel(n_jobs=-1, verbose=0, backend=backend)(delayed(self.get_info)(urls_processing, i, url, temp_folder) for i, url in enumerate(urls_sort[:length]))
+        not_success = False
+      except Exception:
+        if backend == 'loky':
+          backend = 'threading'
+        else:
+          temp_folder, urls_processing = self.initialize_process(current_folder)
+          for i, url in tqdm(enumerate(urls_sort[:length]), desc='Processing URLs (slow)...', total=length):
+            self.get_info(urls_processing, i, url, temp_folder)
+          not_success = False
+        continue
+    return current_folder, temp_folder, urls_processing, required_name
+
+  def printing_error(self, urls_processing):
+    if len(urls_processing['error']) > 0:
+      print('URL failed to get info:')
+      for error_url in urls_processing['error']:
+        print(error_url)

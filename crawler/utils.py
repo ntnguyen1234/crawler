@@ -6,10 +6,34 @@ import sys
 import joblib
 import contextlib
 from tqdm import tqdm
+from joblib import Parallel, delayed
+import nltk
+from readabilipy import simple_json_from_html_string
+import bs4
+from bs4 import BeautifulSoup
+import string
+from itertools import groupby
+import shutil
+import traceback
+import selenium
+from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.service import Service
+from webdriver_manager.firefox import GeckoDriverManager
+import time
+import json
+from multiprocessing import Manager
+import os
 
-global today, current_time
+global today, current_time, special_domains
 today = date.today().strftime('%Y%m%d')
 current_time = datetime.now().strftime('[%Y%m%d-%H%M]')
+special_domains = [
+  # 'crunchbase.com',
+  # 'facebook.com',
+  # 'instagram.com',
+  # 'linkedin.com',
+]
 
 @contextlib.contextmanager
 def tqdm_joblib(tqdm_object):
@@ -64,10 +88,9 @@ def readwrite_pdf(content, current_folder: str, i: int, url: dict):
   if pdf_info['title'] == '' or 'title' not in info or info['title'] == '':
     file_save = f'{i+1}'
   else:
-    file_save = f'{i+1} - {pdf_info["title"].replace("?"," ").replace(":","-").replace("/","-").replace("|","-")}.pdf'
-    file_save = file_save.replace('\\', '-').replace('"', '').replace('\\n', '')
-  file_location = current_folder.joinpath(f'{file_save}')
-  pdf_info['location'] = file_save
+    file_save = f'{i+1}. {replace_name(pdf_info["title"], current_folder)}'
+  file_location = current_folder.joinpath(f'{file_save}.pdf')
+  pdf_info['location'] = file_location
 
   with open(file_location, 'wb') as fw:
     fw.write(content)
@@ -84,6 +107,94 @@ def readwrite_pdf(content, current_folder: str, i: int, url: dict):
   pdf_info['size_ratio'] = pdf_info['total_size']/(pdf_info['num_img'] + 1e-6)
   return pdf_info
 
+def readwrite_article(url: dict, details: dict, content_text=None):
+  if content_text == None:
+    content_text = url['content_text']
+  if type(content_text) == bytes:
+    content_text = content_text.decode('UTF-8')
+
+  article = simple_json_from_html_string(content_text, use_readability=True)
+  if article['title'] == None: return
+
+  # Title
+  title = article['title']
+
+  # Raw content
+  content_raw = BeautifulSoup(article['plain_content'], features='lxml')
+
+  # Extract text file
+  ps = unique(content_raw.select('p, h1, h2, h3'))
+
+  # List of all sentences
+  sentences = []
+  full_text = ''
+  for p in ps:
+    for p_content in p.contents:
+      if isinstance(p_content, bs4.element.Tag):
+        full_text += p_content.text + '\n'
+        # Extract sentences
+        for token in nltk.sent_tokenize(p_content.text):
+          sentences.append(token)
+      else:
+        full_text += p_content + '\n'
+        for token in nltk.sent_tokenize(p_content):
+          sentences.append(token)
+
+  # Index of sentences that contain keywords
+  tokenizer = nltk.TweetTokenizer()
+  article_length = 0
+  keywords_count = 0
+  indices = []
+  for i, sentence in enumerate(sentences):
+    article_length += len([x for x in tokenizer.tokenize(sentence) if x not in string.punctuation])
+    if any([key.lower() in sentence.lower() for key in details['keywords']]): # Lower case all the words
+      keywords_count += sum([sentence.lower().count(key.lower()) for key in details['keywords']])
+      for j in range(max(0, i-details['fb']), min(i+details['fb']+1, len(sentences))): # Forward/backward
+        indices.append(j)
+
+  # Handle if sentences contain keywords or not
+  if len(indices) == 0: return
+  elif len(indices) == 1:
+    consecutive_indices = [indices]
+  else:
+    # Split consecutive sentences
+    indices_set = list(set(indices))
+    gb = groupby(enumerate(indices_set), key=lambda x: x[0] - x[1])
+    all_groups = ([i[1] for i in g] for _, g in gb)
+    consecutive_indices = list(filter(lambda x: len(x) > 1, all_groups))
+  
+  # Dictionary of results
+  output_dict = {
+    'url'    : url['url'],
+    'counter': url['counter'],
+    'title'  : title,
+    'date'   : url['date']
+  }
+  # Counter for numbers in an article
+  num_count = 0
+  # Text results
+  output_text = []
+
+  for c_index in consecutive_indices:
+    # Index of consecutive sentences
+    sentence_list = [' '.join(sentences[i].replace('\n', ' ').split()) for i in c_index]
+    final_sentences = f'  + {" ".join(sentence_list)}\n'
+    output_text.append(final_sentences)
+
+    # Count numbers in article
+    # all_tokens = [word_tokenize(t) for t in sent_tokenize(final_sentences)]
+    all_tokens = [x for x in tokenizer.tokenize(final_sentences) if x not in string.punctuation]
+    for token in all_tokens:
+      if token.lstrip('-').replace('.','',1).replace(',','',1).replace('%','',1).replace('$','',1).replace('#','',1).isnumeric():
+        num_count += 1
+  output_dict['content']      = output_text
+  output_dict['num_count']    = num_count
+  output_dict['keywords']     = keywords_count
+  output_dict['length']       = article_length
+  output_dict['full_text']    = full_text
+  output_dict['full_content'] = article['content']
+  return output_dict
+
 def sort_urls(urls):
   seen = set()
   urls_info = []
@@ -98,7 +209,6 @@ def sort_urls(urls):
     })
   return (sorted(urls_info, key = lambda k: -k['counter']))
   
-
 def stats_output(url_dict):
   return f"""({url_dict["url"]})
   Score      : {url_dict["score"]}
@@ -130,3 +240,7 @@ def loop_input(command):
     user_input = input('>>> ')
     if user_input != '':
       return user_input
+
+def replace_name(name: str, parent_folder) -> str:
+  length = 250 - len(str(parent_folder))
+  return name[:length].replace('?','').replace(':','-').replace('/','-').replace('|','-').replace('\\','-').replace('"','').replace('\n','').replace('.','-')

@@ -1,39 +1,29 @@
-import time
-from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.proxy import Proxy, ProxyType
-from bs4 import BeautifulSoup
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 import logging
 import pickle
-import os
-import selenium
-from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.firefox.service import Service
-from webdriver_manager.firefox import GeckoDriverManager
 from selenium.webdriver.common.by import By
+from crawler.article import ArticleCrawler
 from crawler.pdfcrawler import PDFCrawler
 from crawler.generalcrawler import Crawler
 from crawler.searcher import Serper
 from crawler.utils import *
 
 class LinkedInCrawler(Crawler):
-  def __init__(self, searcher: Serper, required: list, das: list, is_colab: bool, scroll: int=20, delay: int=5, email: str="", password: str=""):
-    super().__init__(searcher, required, das, is_colab)
+  def __init__(self, searcher: Serper, parameters: dict, scroll: int=20, delay: int=5):
+    super().__init__(searcher, parameters)
     if not os.path.exists("data"):
       os.makedirs("data")
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=logging.INFO, format=log_fmt)
-    self.scroll = scroll
-    self.delay = delay
-    self.email = email
-    self.password = password
-    self.params = {
-      'type' : 'linkedin',
-    }
+    self.scroll   = scroll
+    self.delay    = delay
+    self.parameters['type'] = 'linkedin'
+
     logging.info("Starting driver")
     options = Options()
     # options.add_argument("--headless")
@@ -42,8 +32,9 @@ class LinkedInCrawler(Crawler):
     options.add_argument("-profile")
     options.add_argument("C:\\Users\\Administrator\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles\\r1uc2bce.default")
     self.driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()), options=options)
+    # self.driver = webdriver.Firefox(options=options)
 
-  def login(self, email, password):
+  def login(self):
     """Go to linkedin and login"""
     # go to linkedin:
     logging.info("Logging in")
@@ -51,8 +42,8 @@ class LinkedInCrawler(Crawler):
     self.driver.get('https://www.linkedin.com/login')
     time.sleep(self.delay)
 
-    self.driver.find_elements(By.ID, 'username')[0].send_keys(email)
-    self.driver.find_elements(By.ID, 'password')[0].send_keys(password)
+    self.driver.find_elements(By.ID, 'username')[0].send_keys(self.parameters['email'])
+    self.driver.find_elements(By.ID, 'password')[0].send_keys(self.parameters['password'])
     self.driver.find_elements(By.ID, 'password')[0].send_keys(Keys.RETURN)
     time.sleep(self.delay)
 
@@ -75,14 +66,23 @@ class LinkedInCrawler(Crawler):
     self.driver.get(url)
     self.wait()
     posts_button = self.driver.find_elements(By.CSS_SELECTOR, 'button[aria-label="Posts"]')
-    wait_time = 5
+    wait_time = self.delay
     reload = 0
     while posts_button == [] and reload < 5:
       wait_time += 1
       reload += 1
-      self.driver.execute_script("location.reload(True);")
+      # self.driver.execute_script("location.reload(true);")
+      self.close_session()
+      options = Options()
+      # options.add_argument("--headless")
+      # options.add_argument('user_agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:100.0) Gecko/20100101 Firefox/100.0')
+
+      options.add_argument("-profile")
+      options.add_argument("C:\\Users\\Administrator\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles\\r1uc2bce.default")
+      self.driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()), options=options)
+      self.driver.get(url)
       self.wait(wait_time)
-      print(posts_button)
+      posts_button = self.driver.find_elements(By.CSS_SELECTOR, 'button[aria-label="Posts"]')
     # search based on keywords and location and hit enter
     return self.wait_for_element_ready(By.CSS_SELECTOR, 'button[aria-label="Posts"]')
     # time.sleep(self.delay)
@@ -143,14 +143,16 @@ class LinkedInCrawler(Crawler):
   def crawl(self, location: str=''):
     logging.info("Begin linkedin keyword search")
     urls = []
-    for req in self.required:
-      for da in self.das:
+    for req in self.parameters['required']:
+      for da in self.parameters['das']:
         q = f'{req} {da} pdf'
         _ = self.search_linkedin(q, location)
         logging.info('Scrolling...')
         for _ in tqdm(range(20)):
-          self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight)")
-          self.wait(1)
+          self.wait(2)
+          self.driver.execute_script('window.scrollBy({top: -window.innerHeight, left: 0, behavior: "smooth"});')
+          self.wait(2)
+          self.driver.execute_script('window.scrollBy({top: document.body.scrollHeight, left: 0, behavior: "smooth"});')
         posts = self.driver.find_elements(By.CSS_SELECTOR, 'span[dir="ltr"] a[href]')
         
         for post in posts:
@@ -159,7 +161,7 @@ class LinkedInCrawler(Crawler):
           urls.append({'url': url, 'date': ''})
     return urls
 
-  def run(self, PDFCrawl: PDFCrawler, project_name: str='', pdf_num: int=30, location: str='', email: str='', password: str=''):
+  def run(self, PDFCrawl: PDFCrawler, ArticleCrawl: ArticleCrawler, project_name: str='', num_final: int=30, location: str=''):
     # if os.path.exists("data/cookies.txt"):
     #   self.driver.get("https://www.linkedin.com/")
     #   self.load_cookie("data/cookies.txt")
@@ -170,8 +172,15 @@ class LinkedInCrawler(Crawler):
     #     password=password
     #   )
     #   self.save_cookie("data/cookies.txt")
-    urls = self.crawl()
+    search_urls = self.crawl()
     self.close_session()
-    required_folder, urls_sort, required_name = super().collect(urls, project_name, self.params['type'])
-    return PDFCrawl.save_pdf(required_folder, urls_sort, required_name, pdf_num)
-    
+    time.sleep(5)
+    current_folder, temp_folder, urls_processing, required_name = super().process_urls(search_urls, project_name, 'linkedin')
+    final = {}
+    for ty in ['pdf', 'article']:
+      final[ty] = {}
+      current_folder.joinpath(ty).mkdir(parents=True, exist_ok=True)
+    final['pdf']['current_folder'], final['pdf']['output_file'] = PDFCrawl.save_pdf(current_folder.joinpath('pdf'), temp_folder, urls_processing, required_name, num_final)
+    final['article']['current_folder'], final['article']['output_file'] = ArticleCrawl.save_article(current_folder.joinpath('article'), urls_processing, required_name, num_final)
+    super().printing_error(urls_processing)
+    return current_folder
