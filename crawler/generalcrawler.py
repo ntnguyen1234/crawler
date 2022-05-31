@@ -90,7 +90,7 @@ class Crawler:
       for r in response.history:
         final_url = r.headers['Location']
       response.close()
-      return final_url, content, content_text
+      return remove_trackings(final_url), content, content_text
 
   def scrapingbee(self, url: str):
     headers = {
@@ -100,12 +100,12 @@ class Crawler:
     response = client.get(
       url,
       params = {
-        'device'            : 'desktop',
-        'block_ads'         : True,
-        'json_response'     : True,
-        'render_js'         : True,
-        'window_width'      : 1920,
-        'window_height'     : 1080,
+        'device'       : 'desktop',
+        'block_ads'    : True,
+        'json_response': True,
+        'render_js'    : True,
+        'window_width' : 1920,
+        'window_height': 1080,
       },
       headers = headers,
     )
@@ -130,7 +130,7 @@ class Crawler:
 
   def initialize_process(self, current_folder, crawl_type: str='article'):
     temp_folder = current_folder.parents[0].joinpath('temp')
-    if crawl_type == 'pdf':
+    if crawl_type in ['pdf', 'linkedin']:
       temp_folder.mkdir(parents=True, exist_ok=True)
 
     manager = Manager()
@@ -184,6 +184,8 @@ class Crawler:
             self.get_info(urls_processing, i, url, temp_folder)
           not_success = False
         continue
+    for key in urls_processing.keys():
+      urls_processing[key] = sort_urls(urls_processing[key])
     return current_folder, temp_folder, urls_processing, required_name
 
   def printing_error(self, urls_processing):

@@ -20,20 +20,12 @@ class LinkedInCrawler(Crawler):
       os.makedirs("data")
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(level=logging.INFO, format=log_fmt)
-    self.scroll   = scroll
-    self.delay    = delay
+    self.scroll = scroll
+    self.delay  = delay
     self.parameters['type'] = 'linkedin'
-
+    self.driver = get_driver()
     logging.info("Starting driver")
-    options = Options()
-    # options.add_argument("--headless")
-    # options.add_argument('user_agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:100.0) Gecko/20100101 Firefox/100.0')
-
-    options.add_argument("-profile")
-    options.add_argument("C:\\Users\\Administrator\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles\\r1uc2bce.default")
-    self.driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()), options=options)
-    # self.driver = webdriver.Firefox(options=options)
-
+    
   def login(self):
     """Go to linkedin and login"""
     # go to linkedin:
@@ -73,13 +65,7 @@ class LinkedInCrawler(Crawler):
       reload += 1
       # self.driver.execute_script("location.reload(true);")
       self.close_session()
-      options = Options()
-      # options.add_argument("--headless")
-      # options.add_argument('user_agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:100.0) Gecko/20100101 Firefox/100.0')
-
-      options.add_argument("-profile")
-      options.add_argument("C:\\Users\\Administrator\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles\\r1uc2bce.default")
-      self.driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()), options=options)
+      self.driver = get_driver()
       self.driver.get(url)
       self.wait(wait_time)
       posts_button = self.driver.find_elements(By.CSS_SELECTOR, 'button[aria-label="Posts"]')
@@ -145,10 +131,10 @@ class LinkedInCrawler(Crawler):
     urls = []
     for req in self.parameters['required']:
       for da in self.parameters['das']:
-        q = f'{req} {da} pdf'
+        q = f'"{req}" {da}'
         _ = self.search_linkedin(q, location)
         logging.info('Scrolling...')
-        for _ in tqdm(range(20)):
+        for _ in tqdm(range(self.scroll)):
           self.wait(2)
           self.driver.execute_script('window.scrollBy({top: -window.innerHeight, left: 0, behavior: "smooth"});')
           self.wait(2)
@@ -159,6 +145,9 @@ class LinkedInCrawler(Crawler):
           url = post.get_attribute('href')
           if 'linkedin.com' in url or not url.startswith('http'): continue
           urls.append({'url': url, 'date': ''})
+        self.close_session()
+        self.driver = get_driver()
+    self.close_session()
     return urls
 
   def run(self, PDFCrawl: PDFCrawler, ArticleCrawl: ArticleCrawler, project_name: str='', num_final: int=30, location: str=''):
@@ -173,8 +162,7 @@ class LinkedInCrawler(Crawler):
     #   )
     #   self.save_cookie("data/cookies.txt")
     search_urls = self.crawl()
-    self.close_session()
-    time.sleep(5)
+    self.wait()
     current_folder, temp_folder, urls_processing, required_name = super().process_urls(search_urls, project_name, 'linkedin')
     final = {}
     for ty in ['pdf', 'article']:

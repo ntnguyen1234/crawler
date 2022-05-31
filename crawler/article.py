@@ -57,8 +57,8 @@ class ArticleCrawler(Crawler):
     error_length = len(urls_processing['error'])
     if error_length > 0:
       for url in tqdm(urls_processing['error'], desc='Processing error pages...', total=error_length):
-        content_text = super().scrapingbee(url['url'])
         try:
+          content_text = super().scrapingbee(url['url'])
           article_info = readwrite_article(url, self.details, content_text)
           if article_info != None:
             urls_processing['doc'].append(article_info)

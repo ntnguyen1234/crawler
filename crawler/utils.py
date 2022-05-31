@@ -24,6 +24,7 @@ import time
 import json
 from multiprocessing import Manager
 import os
+from urllib.parse import urlencode, urlparse, parse_qs
 
 global today, current_time, special_domains
 today = date.today().strftime('%Y%m%d')
@@ -198,15 +199,15 @@ def readwrite_article(url: dict, details: dict, content_text=None):
 def sort_urls(urls):
   seen = set()
   urls_info = []
+  urls_link = [url['url'] for url in urls]
   for url in urls:
     if url['url'] in seen: continue
     seen.add(url['url'])
-    counter = urls.count(url)
-    urls_info.append({
-      'url'    : url['url'],
-      'counter': counter,
-      'date'   : url['date'],
-    })
+    if 'counter' in url.keys():
+      url['counter'] = url['counter'] + sum([u['counter'] for u in urls if u['url'] == url['url']])
+    else:
+      url['counter'] = urls_link.count(url['url'])
+    urls_info.append(url)
   return (sorted(urls_info, key = lambda k: -k['counter']))
   
 def stats_output(url_dict):
@@ -244,3 +245,22 @@ def loop_input(command):
 def replace_name(name: str, parent_folder) -> str:
   length = 250 - len(str(parent_folder))
   return name[:length].replace('?','').replace(':','-').replace('/','-').replace('|','-').replace('\\','-').replace('"','').replace('\n','').replace('.','-')
+
+def remove_trackings(url):
+  u = urlparse(url)
+  query = parse_qs(u.query, keep_blank_values=True)
+  query_keys = list(query.keys())
+  for q in query_keys:
+    if q.startswith('utm_'):
+      query.pop(q, None)
+  return u._replace(query=urlencode(query, True)).geturl()
+
+def get_driver():
+  options = Options()
+  # options.add_argument("--headless")
+  # options.add_argument('user_agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:100.0) Gecko/20100101 Firefox/100.0')
+
+  options.add_argument("-profile")
+  options.add_argument("C:\\Users\\Administrator\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles\\r1uc2bce.default")
+  return webdriver.Firefox(service=Service(GeckoDriverManager().install()), options=options)
+  # self.driver = webdriver.Firefox(options=options)
