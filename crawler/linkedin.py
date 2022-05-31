@@ -132,6 +132,7 @@ class LinkedInCrawler(Crawler):
     for req in self.parameters['required']:
       for da in self.parameters['das']:
         q = f'"{req}" {da}'
+        print(q)
         _ = self.search_linkedin(q, location)
         logging.info('Scrolling...')
         for _ in tqdm(range(self.scroll)):

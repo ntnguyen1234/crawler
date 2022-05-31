@@ -138,7 +138,7 @@ class Crawler:
     }
     return temp_folder, urls_processing
 
-  def get_info(self, urls_processing, i: int, url: dict, current_folder=None):
+  def get_info(self, urls_processing, i: int, url: dict, current_folder=None, crawl_type: str='article'):
     try:
       final_url, content, content_text = self.fast_response(url['url'])
       if content == None: return
@@ -146,7 +146,8 @@ class Crawler:
         if 'linkedin.com' in final_url: return
         url['url'] = final_url
         if content_text.startswith('%PDF-'):
-          pdf_info = readwrite_pdf(content, current_folder, i, url)
+          if crawl_type != 'article':
+            pdf_info = readwrite_pdf(content, current_folder, i, url)
           urls_processing['pdf'].append(pdf_info)
         else:
           url['content']      = content
@@ -169,7 +170,7 @@ class Crawler:
       try:
         temp_folder, urls_processing = self.initialize_process(current_folder, crawl_type)
         with tqdm_joblib(tqdm(desc='Processing URLs...', total=length)) as _:
-          Parallel(n_jobs=-1, verbose=0, backend=backend)(delayed(self.get_info)(urls_processing, i, url, temp_folder) for i, url in enumerate(urls_sort[:length]))
+          Parallel(n_jobs=-1, verbose=0, backend=backend)(delayed(self.get_info)(urls_processing, i, url, temp_folder, crawl_type) for i, url in enumerate(urls_sort[:length]))
         not_success = False
       except Exception:
         if backend == 'loky':
