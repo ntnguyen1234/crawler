@@ -38,7 +38,7 @@ def main():
     LinkedinCrawl  = LinkedInCrawler(GoogleSearcher, parameters)
     current_folder = LinkedinCrawl.run(PDFCrawl, ArticleCrawl, project_name, num_final)
   if parameters['is_colab']:
-    print(f'\nResults are in folder: {str(current_folder).split("MyDrive")[1]}')
+    print(f'\nResults are in folder    : {str(current_folder).split("MyDrive")[1]}')
     print(f'Stats report is in folder: {str(stats_file).split("MyDrive")[1]}')
 
 if __name__ == '__main__':
