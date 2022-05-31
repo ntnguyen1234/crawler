@@ -204,7 +204,7 @@ def sort_urls(urls):
     if url['url'] in seen: continue
     seen.add(url['url'])
     if 'counter' in url.keys():
-      url['counter'] = url['counter'] + sum([u['counter'] for u in urls if u['url'] == url['url']])
+      url['counter'] = sum([u['counter'] for u in urls if u['url'] == url['url']])
     else:
       url['counter'] = urls_link.count(url['url'])
     urls_info.append(url)
