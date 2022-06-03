@@ -97,15 +97,11 @@ def readwrite_pdf(content, current_folder, i: int, url: dict):
   else:
     dt = url['date']
 
-  title = ''
-  if info['title'] != '': title = info['title']
-  else: title = url['title']
-
   pdf_info = {
     'url'       : url['url'],
     'counter'   : url['counter'],
     'num_page'  : int(num_page),
-    'title'     : title,
+    'title'     : info['title'] if info['title'] != '' else url['title'],
     'date'      : dt,
     'num_img'   : 0,
     'total_size': 0,
