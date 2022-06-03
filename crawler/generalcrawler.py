@@ -65,10 +65,10 @@ class Crawler:
     check_file(all_urls)
     with open(all_urls, 'a') as fw:
       for url in search_urls:
-        fw.write(f'{url["url"]} -{url["date"]} +{url["title"]}\n')
+        fw.write(f'{url["url"]} -{url["date"]} -{url["title"]}\n')
 
     with open(all_urls, 'r') as fr:
-      urls = [{'url': line.strip().split(' -')[0], 'date': line.strip().split(' -')[1], 'title': line.strip().split(' +')[1]} for line in fr.readlines()]
+      urls = [{'url': line.strip().split(' -')[0], 'date': line.strip().split(' -')[1], 'title': line.strip().split(' -')[2]} for line in fr.readlines()]
 
     print(f'Total = {len(urls)}')
     urls_sort = sort_urls(urls)
