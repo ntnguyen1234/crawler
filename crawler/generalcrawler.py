@@ -50,8 +50,10 @@ class Crawler:
         times = 0
         while len(urls_temp) == 0:
           if times == 0:
-            pages = self.searcher.normal(q, num_result=10)
+            pages = self.searcher.normal(q, has_tbs=False)
           elif times == 1:
+            pages = self.searcher.normal(q, num_result=10)
+          elif times == 2:
             pages = self.searcher.normal(q, num_result=10, has_tbs=False)
           else: break
           urls_temp = self.crawl_pages(pages, urls)
