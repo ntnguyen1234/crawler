@@ -4,7 +4,6 @@ def main():
   with open(Path.cwd().parents[0].joinpath('parameters.json'), 'r') as fr:
     parameters = json.load(fr)
   nltk.download('punkt')
-  num_result = 40
   os.environ['GH_TOKEN'] = parameters['GH_TOKEN']
 
   project_name = loop_input('\nProject name (i.e. emmay):')
@@ -25,6 +24,9 @@ def main():
     parameters['das'] = ['']
   else:
     parameters['das'] = das_str.replace(', ',',').split(',')
+
+  print('\nNumber of results in each search. Default is 40. Press Enter to leave as default.')
+  num_result = default_input(40, int)
 
   print('\nNumber of final files. Default is 30. Press Enter to leave as default.')
   num_final = default_input(30, int)
