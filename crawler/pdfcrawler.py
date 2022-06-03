@@ -18,7 +18,7 @@ class PDFCrawler(Crawler):
         tm[k] = te[k]
       features = [tm[f'{k}_normalized'] for k in ['total_size', 'counter', 'num_page', 'num_img', 'img_ratio', 'size_ratio']]
       weights  = [0.1, 0.5, 0.1, 0.1, 0.1, 0.1]
-      tm['score'] = tm['num_img_normalized']*tm['counter_normalized']*sum([w*f for w,f in zip(weights, features)])
+      tm['score'] = tm['num_img_normalized']*tm['counter_normalized']*tm['img_ratio_normalized']*sum([w*f for w,f in zip(weights, features)])
 
     urls_sort = (sorted(temp_modified, key = lambda k: (-k['score'], -k['counter'])))
     length = min(num_final, len(urls_sort))
