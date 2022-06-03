@@ -17,7 +17,10 @@ class Crawler:
 
       # Get original link result from search
       for organic_result in result["organic_results"]:
-        url = {'url' : organic_result['link']}
+        url = {
+          'url'  : organic_result['link'],
+          'title': organic_result['title']
+        }
         if 'date' in organic_result.keys():
           published_date = organic_result['date'].split(', ')[-1]
           if published_date.isnumeric():
