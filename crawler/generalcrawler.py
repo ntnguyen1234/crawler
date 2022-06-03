@@ -37,7 +37,10 @@ class Crawler:
     urls = []
     for req in self.parameters['required']:
       for da in self.parameters['das']:
-        q = f'{req} + "{da}"{query}'
+        if self.parameters['das'][0] == '':
+          q = f'{req}{query}'
+        else:
+          q = f'{req} "{da}"{query}'
         print(q)
         pages = self.searcher.normal(q, num_result)
         urls_temp = self.crawl_pages(pages, urls, num_page)
@@ -134,6 +137,7 @@ class Crawler:
       'raw'    : manager.list(),
       'doc'    : manager.list(),
       'pdf'    : manager.list(),
+      'ppt'    : manager.list(),
       'error'  : manager.list(),
     }
     return temp_folder, urls_processing
@@ -149,6 +153,10 @@ class Crawler:
           if crawl_type != 'article':
             pdf_info = readwrite_pdf(content, current_folder, i, url)
             urls_processing['pdf'].append(pdf_info)
+        elif content_text.startswith('PK') or url['url'].endswith('.ppt') or url['url'].contains('.ppt?') or url['url'].contains('.ppt&') or url['url'].contains('.ppt#'):
+          if crawl_type != 'article':
+            ppt_info = readwrite_ppt(content, content_text, current_folder, i, url)
+            urls_processing['ppt'].append(ppt_info)
         else:
           url['content']      = content
           url['content_text'] = content_text

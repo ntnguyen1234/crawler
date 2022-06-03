@@ -18,9 +18,13 @@ def main():
   parameters['required'] = required_str.replace(', ',',').split(',')
 
   das_default = 'market, revenue, valuation, growth, business model, customer, benefit, position, competitor'
-  print(f'\nDeck Attributes. Put "," between attribute (i.e market, revenue)\nDefault are "{das_default}":\nPress Enter to leave as default.')
-  das_str = default_input(das_default, str)
-  parameters['das'] = das_str.replace(', ',',').split(',')
+  print(f'\nDeck Attributes. Put "," between attribute (i.e market, revenue)\Examples are "{das_default}":\nPress Enter to leave as default.')
+  # das_str = default_input(das_default, str)
+  das_str = input('>>> ')
+  if len(das_str.split()) == 0 and len(das_str.split(',')) == 0:
+    parameters['das'] = ['']
+  else:
+    parameters['das'] = das_str.replace(', ',',').split(',')
 
   print('\nNumber of final files. Default is 30. Press Enter to leave as default.')
   num_final = default_input(30, int)

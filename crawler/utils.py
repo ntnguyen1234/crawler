@@ -25,6 +25,9 @@ import json
 from multiprocessing import Manager
 import os
 from urllib.parse import urlencode, urlparse, parse_qs
+import win32com.client
+from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 
 global today, current_time, special_domains
 today = date.today().strftime('%Y%m%d')
@@ -65,7 +68,21 @@ def set_folder(is_colab: bool, project_name: str, crawl_type: str, required: lis
   required_folder.mkdir(parents=True, exist_ok=True)
   return required_folder, required_name
 
-def readwrite_pdf(content, current_folder: str, i: int, url: dict):
+def convertppt(ppt_target_file, ext):
+  file_type  = {
+    'pdf' : 32,
+    'pptx': 24,
+  }
+  file_path = Path(ppt_target_file).resolve()
+  out_file = file_path.parent / file_path.stem
+  powerpoint = win32com.client.Dispatch("Powerpoint.Application")
+  pdf = powerpoint.Presentations.Open(file_path, WithWindow=False)
+  pdf.SaveAs(out_file, file_type[ext])
+  pdf.Close()
+  powerpoint.Quit()
+  return
+
+def readwrite_pdf(content, current_folder, i: int, url: dict):
   with fitz.open(stream=content) as doc:
     num_page = doc.page_count
     info = doc.metadata
@@ -80,7 +97,7 @@ def readwrite_pdf(content, current_folder: str, i: int, url: dict):
     'url'       : url['url'],
     'counter'   : url['counter'],
     'num_page'  : int(num_page),
-    'title'     : info['title'],
+    'title'     : info['title'] if info['title'] != '' else url['title'],
     'date'      : dt,
     'num_img'   : 0,
     'total_size': 0,
@@ -107,6 +124,40 @@ def readwrite_pdf(content, current_folder: str, i: int, url: dict):
   pdf_info['img_ratio' ] = pdf_info['num_img']/pdf_info['num_page']
   pdf_info['size_ratio'] = pdf_info['total_size']/(pdf_info['num_img'] + 1e-6)
   return pdf_info
+
+def readwrite_ppt(content, content_text, current_folder, i: int, url: dict):
+  ppt_path = current_folder.joinpath(f'{i}.pptx')
+  if content_text.startswith('PK'):
+    with open(ppt_path, 'wb') as fb:
+      fb.write(content)
+  else:
+    with open(ppt_path, 'wb') as fb:
+      fb.write(content)
+    convertppt(ppt_path, 'pptx')
+    ppt_path.unlink()
+  prs = Presentation(ppt_path)
+  ppt_info['num_img'] = 0
+  for slide in prs.slides:
+    for shape in slide.shapes:
+      types = [
+        MSO_SHAPE_TYPE.CHART, 
+        MSO_SHAPE_TYPE.DIAGRAM,
+        MSO_SHAPE_TYPE.PICTURE,
+      ]
+      if shape.shape_type in types:
+        if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
+          width, height = shape.image.size
+          if width > 200 and height > 200: ppt_info['num_img'] += 1
+        else: ppt_info['num_img'] += 1
+  ppt_info = {
+    'url'     : url['url'],
+    'counter' : url['counter'],
+    'title'   : url['title'],
+    'date'    : url['date'],
+    'num_page': len(prs.slides),
+  }
+  ppt_info['img_ratio'] = ppt_info['num_img']/ppt_info['num_page']
+  return ppt_info
 
 def readwrite_article(url: dict, details: dict, content_text=None):
   if content_text == None:
@@ -211,15 +262,24 @@ def sort_urls(urls):
   return (sorted(urls_info, key = lambda k: -k['counter']))
   
 def stats_output(url_dict):
-  return f"""({url_dict["url"]})
-  Score      : {url_dict["score"]}
-  Img size   : {url_dict["total_size"]}
-  Counter    : {url_dict["counter"]}
-  Page num   : {url_dict["num_page"]}
-  Img num    : {url_dict["num_img"]}
-  Img ratio  : {url_dict["img_ratio"]}
-  Size ratio : {url_dict["size_ratio"]}
-  """
+  if 'total_size' in url_dict.keys():
+    return f"""({url_dict["url"]})
+    Score      : {url_dict["score"]}
+    Img size   : {url_dict["total_size"]}
+    Counter    : {url_dict["counter"]}
+    Page num   : {url_dict["num_page"]}
+    Img num    : {url_dict["num_img"]}
+    Img ratio  : {url_dict["img_ratio"]}
+    Size ratio : {url_dict["size_ratio"]}
+    """
+  else:
+    return f"""({url_dict["url"]})
+    Score     : {url_dict["score"]}
+    Counter   : {url_dict["counter"]}
+    Page num  : {url_dict["num_page"]}
+    Img num   : {url_dict["num_img"]}
+    Img ratio : {url_dict["img_ratio"]}
+    """
 
 def check_file(output_file):
   if pathlib.Path(output_file).is_file():

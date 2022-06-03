@@ -1,4 +1,3 @@
-from dataclasses import replace
 from crawler.generalcrawler import Crawler
 from crawler.searcher import Serper
 from crawler.utils import *
@@ -13,7 +12,6 @@ class PDFCrawler(Crawler):
     return self.save_pdf(current_folder, temp_folder, urls_processing, required_name, num_final)
   
   def save_pdf(self, current_folder, temp_folder, urls_processing: dict, required_name: str, num_final: int=30):
-    # current_folder, temp_folder, urls_processing, required_name = super().process_urls(search_urls, project_name, 'pdf')
     temp_modified = [{f'{k}_normalized': t[k]/(max([te[k] for te in urls_processing['pdf']]) + 1e-6) for k in t.keys() if k not in ['url', 'title', 'date', 'location']} for t in urls_processing['pdf']]
     for tm, te in zip(temp_modified, urls_processing['pdf']):
       for k in te.keys():
