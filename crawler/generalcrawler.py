@@ -156,7 +156,7 @@ class Crawler:
           if crawl_type != 'article':
             pdf_info = readwrite_pdf(content, current_folder, i, url)
             urls_processing['pdf'].append(pdf_info)
-        elif content_text.startswith('PK') or url['url'].endswith('.ppt') or url['url'].contains('.ppt?') or url['url'].contains('.ppt&') or url['url'].contains('.ppt#'):
+        elif content_text.startswith('PK') or url['url'].endswith('.ppt') or '.ppt?' in url['url'] or '.ppt&' in url['url'] or '.ppt#' in url['url']:
           if crawl_type != 'article':
             ppt_info = readwrite_ppt(content, content_text, current_folder, i, url)
             urls_processing['ppt'].append(ppt_info)
