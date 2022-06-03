@@ -25,9 +25,13 @@ import json
 from multiprocessing import Manager
 import os
 from urllib.parse import urlencode, urlparse, parse_qs
-import win32com.client
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
+
+try:
+  import win32com.client
+except Exception:
+  pass
 
 global today, current_time, special_domains
 today = date.today().strftime('%Y%m%d')
