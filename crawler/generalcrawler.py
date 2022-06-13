@@ -1,13 +1,16 @@
 import requests
 from crawler.searcher import Serper
+from crawler.converter import Converter
 from crawler.utils import *
 import urllib3
+import urllib.parse
 from scrapingbee import ScrapingBeeClient
 
 class Crawler:
   def __init__(self, searcher: Serper, parameters: dict):
     self.searcher   = searcher
     self.parameters = parameters
+    self.converter  = Converter(self.parameters)
 
   def crawl_pages(self, pages, urls: list, num_page: int=1) -> list:
     urls_temp  = []
@@ -18,8 +21,8 @@ class Crawler:
       # Get original link result from search
       for organic_result in result["organic_results"]:
         url = {
-          'url'  : organic_result['link'],
-          'title': organic_result['title']
+          'url'  : urllib.parse.unquote_plus(organic_result['link']),
+          'title': replace_name(organic_result['title'])
         }
         if 'date' in organic_result.keys():
           published_date = organic_result['date'].split(', ')[-1]
@@ -50,9 +53,9 @@ class Crawler:
         times = 0
         while len(urls_temp) == 0:
           if times == 0:
-            pages = self.searcher.normal(q, has_tbs=False)
-          elif times == 1:
             pages = self.searcher.normal(q, num_result=10)
+          elif times == 1:
+            pages = self.searcher.normal(q, num_result=num_result, has_tbs=False)
           elif times == 2:
             pages = self.searcher.normal(q, num_result=10, has_tbs=False)
           else: break
@@ -60,10 +63,10 @@ class Crawler:
           times += 1
     return urls
 
-  def collect(self, search_urls: list, project_name: str, crawl_type: str='article'):
-    required_folder, required_name = set_folder(self.parameters['is_colab'], project_name, crawl_type, self.parameters['required'])
+  def collect(self, search_urls: list, project_name: str, types: dict={'crawl_type': 'article'}):
+    required_folder, required_name = set_folder(self.parameters, project_name, types['crawl_type'])
     
-    all_urls = f'[{today}] {crawl_type}.txt'
+    all_urls = f'[{today}] {types["crawl_type"]}.txt'
     check_file(all_urls)
     with open(all_urls, 'a') as fw:
       for url in search_urls:
@@ -132,9 +135,9 @@ class Crawler:
     out = BeautifulSoup(driver.page_source, 'lxml')
     return str(out)
 
-  def initialize_process(self, current_folder, crawl_type: str='article'):
+  def initialize_process(self, current_folder, types: dict={'crawl_type': 'article'}):
     temp_folder = current_folder.parents[0].joinpath('temp')
-    if crawl_type != 'article':
+    if types['crawl_type'] != 'article':
       temp_folder.mkdir(parents=True, exist_ok=True)
 
     manager = Manager()
@@ -147,53 +150,54 @@ class Crawler:
     }
     return temp_folder, urls_processing
 
-  def get_info(self, urls_processing, i: int, url: dict, current_folder=None, crawl_type: str='article'):
+  def get_info(self, urls_processing, i: int, url: dict, current_folder=None, types: dict={'crawl_type': 'article'}):
     try:
       final_url, content, content_text = self.fast_response(url['url'])
       if content == None: return
       else:
         if 'linkedin.com' in final_url: return
         url['url'] = final_url
+        ppt_suffixes = ['.ppt?', '.ppt&', '.ppt#']
+        pps_suffixes = ['.ppsx?', '.ppsx&', '.ppsx#']
         if content_text.startswith('%PDF-'):
-          if crawl_type != 'article':
-            pdf_info = readwrite_pdf(content, current_folder, i, url)
+          if types['crawl_type'] != 'article':
+            pdf_info = readwrite_pdf(content, current_folder, i, url, self.parameters['required'])
             urls_processing['pdf'].append(pdf_info)
-        elif content_text.startswith('PK') or url['url'].endswith('.ppt') or '.ppt?' in url['url'] or '.ppt&' in url['url'] or '.ppt#' in url['url']:
-          if crawl_type != 'article':
-            ppt_info = readwrite_ppt(content, content_text, current_folder, i, url)
-            urls_processing['ppt'].append(ppt_info)
-        else:
+        elif (content_text.startswith('PK') and not string_contain(url['url'], pps_suffixes, ['.ppsx'])) or string_contain(url['url'], ppt_suffixes, ['.ppt']):
+          if types['crawl_type'] != 'article':
+            ppt_info = self.converter.readwrite_ppt(content, content_text, current_folder, i, url)
+            if ppt_info != None:
+              urls_processing['ppt'].append(ppt_info)
+        elif types['crawl_type'] == 'article':
           url['content']      = content
           url['content_text'] = content_text
           urls_processing['raw'].append(url)
-          
     except Exception:
       urls_processing['error'].append(url)
       print(f'\n\nget_info ==========================================\n\n{url}\n\n')
       print(traceback.format_exc())
       print('========================================================\n')
 
-  def process_urls(self, urls: list, project_name: str, crawl_type: str='article'):
-    current_folder, urls_sort, required_name = self.collect(urls, project_name, crawl_type)
+  def process_urls(self, urls: list, project_name: str, types: dict={'crawl_type': 'article'}):
+    current_folder, urls_sort, required_name = self.collect(urls, project_name, types)
 
     length = len(urls_sort)
-    not_success = True
     backend = 'loky'
-    while not_success:
+    while True:
       try:
-        temp_folder, urls_processing = self.initialize_process(current_folder, crawl_type)
+        temp_folder, urls_processing = self.initialize_process(current_folder, types)
         with tqdm_joblib(tqdm(desc='Processing URLs...', total=length)) as _:
-          Parallel(n_jobs=-1, verbose=0, backend=backend)(delayed(self.get_info)(urls_processing, i, url, temp_folder, crawl_type) for i, url in enumerate(urls_sort[:length]))
-        not_success = False
+          Parallel(n_jobs=-1, verbose=0, backend=backend)(delayed(self.get_info)(urls_processing, i, url, temp_folder, types) for i, url in enumerate(urls_sort[:length]))
+        break
       except Exception:
         if backend == 'loky':
           backend = 'threading'
+          continue
         else:
           temp_folder, urls_processing = self.initialize_process(current_folder)
           for i, url in tqdm(enumerate(urls_sort[:length]), desc='Processing URLs (slow)...', total=length):
-            self.get_info(urls_processing, i, url, temp_folder)
-          not_success = False
-        continue
+            self.get_info(urls_processing, i, url, temp_folder, types)
+          break
     for key in urls_processing.keys():
       urls_processing[key] = sort_urls(urls_processing[key])
     return current_folder, temp_folder, urls_processing, required_name

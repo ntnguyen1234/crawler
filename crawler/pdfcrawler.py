@@ -3,12 +3,13 @@ from crawler.searcher import Serper
 from crawler.utils import *
 
 class PDFCrawler(Crawler):
-  def __init__(self, searcher: Serper, parameters: dict):
+  def __init__(self, searcher: Serper, parameters: dict, types: dict={'crawl_type': 'pdf'}):
     super().__init__(searcher, parameters)
+    self.types = types
 
   def pdf_collect(self, project_name: str, num_result: int=40, num_final: int=30):
     search_urls = super().search(' filetype:pdf', num_result)
-    current_folder, temp_folder, urls_processing, required_name = super().process_urls(search_urls, project_name, 'pdf')
+    current_folder, temp_folder, urls_processing, required_name = super().process_urls(search_urls, project_name, self.types)
     return self.save_pdf(current_folder, temp_folder, urls_processing, required_name, num_final)
   
   def save_pdf(self, current_folder, temp_folder, urls_processing: dict, required_name: str, num_final: int=30):
@@ -16,9 +17,14 @@ class PDFCrawler(Crawler):
     for tm, te in zip(temp_modified, urls_processing['pdf']):
       for k in te.keys():
         tm[k] = te[k]
-      features = [tm[f'{k}_normalized'] for k in ['total_size', 'counter', 'num_page', 'num_img', 'img_ratio', 'size_ratio']]
-      weights  = [0.1, 0.5, 0.1, 0.1, 0.1, 0.1]
-      tm['score'] = tm['num_img_normalized']*tm['counter_normalized']*sum([w*f for w,f in zip(weights, features)])
+      if len(self.parameters['das']) > 1:
+        features = [tm[f'{k}_normalized'] for k in ['total_size', 'counter', 'keywords', 'num_page', 'num_img', 'img_ratio', 'size_ratio']]
+        weights  = [0.1, 0.4, 0.1, 0.1, 0.1, 0.1, 0.1]
+        tm['score'] = tm['num_img_normalized']*tm['keywords_normalized']*tm['counter_normalized']*sum([w*f for w,f in zip(weights, features)])
+      else:
+        features = [tm[f'{k}_normalized'] for k in ['total_size', 'keywords', 'num_page', 'num_img', 'img_ratio', 'size_ratio']]
+        weights  = [0.1, 0.1, 0.1, 0.5, 0.1, 0.1]
+        tm['score'] = tm['num_img_normalized']*tm['keywords_normalized']*sum([w*f for w,f in zip(weights, features)])
 
     urls_sort = (sorted(temp_modified, key = lambda k: (-k['score'], -k['counter'])))
     length = min(num_final, len(urls_sort))
@@ -31,7 +37,7 @@ class PDFCrawler(Crawler):
       if url['title'] == '' or url['title'] == None:
         file_save = f'{i+1}.pdf'
       else:
-        file_save = replace_name(f'{i+1} - {url["title"]}', temp_folder) + '.pdf'
+        file_save = replace_name(f'{i+1} - {url["title"]}', current_folder) + '.pdf'
       file_location = temp_folder.joinpath(url['location'])
       _ = file_location.rename(current_folder.joinpath(file_save))
       out_text += f'{i+1}. '

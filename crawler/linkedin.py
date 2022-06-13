@@ -1,12 +1,11 @@
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.proxy import Proxy, ProxyType
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+try:
+  from selenium.webdriver.common.keys import Keys
+  from selenium.webdriver.support.ui import WebDriverWait
+  from selenium.webdriver.support import expected_conditions as EC
+  from selenium.webdriver.common.proxy import Proxy, ProxyType
+except Exception: pass
 import logging
 import pickle
-from selenium.webdriver.common.by import By
 from crawler.article import ArticleCrawler
 from crawler.pdfcrawler import PDFCrawler
 from crawler.generalcrawler import Crawler

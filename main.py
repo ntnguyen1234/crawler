@@ -1,4 +1,5 @@
 from crawler import *
+from crawler.pptcrawler import PPTCrawler
 
 def main():
   with open(Path.cwd().parents[0].joinpath('parameters.json'), 'r') as fr:
@@ -8,9 +9,9 @@ def main():
 
   project_name = loop_input('\nProject name (i.e. emmay):')
 
-  print('\nWhich type you want to search? Choose number \n1. PDF (default) \n2. Article \n3. LinkedIn (not available)\nPress Enter to leave as default.')
+  print('\nWhich type you want to search? Choose number \n1. PDF (default) \n2. Article \n3. Powerpoint \n4. LinkedIn (not available)\nPress Enter to leave as default.')
   search_type = 0
-  while search_type not in range(1,4):
+  while search_type not in range(1,5):
     search_type = default_input(1, int)
 
   required_str = loop_input('\nF0 keywords. Put "," between each keyword (i.e alternative protein):')
@@ -35,14 +36,18 @@ def main():
   GoogleSearcher.api_key = parameters['api_key']
   PDFCrawl     = PDFCrawler(GoogleSearcher, parameters)
   ArticleCrawl = ArticleCrawler(GoogleSearcher, parameters)
+  PPTCrawl     = PPTCrawler(GoogleSearcher, parameters)
 
   if search_type == 1:
     current_folder, stats_file = PDFCrawl.pdf_collect(project_name, num_result, num_final)
   elif search_type == 2:
     current_folder, stats_file = ArticleCrawl.article_collect(project_name, num_result, num_final)
   elif search_type == 3:
+    current_folder, stats_file = PPTCrawl.ppt_collect(project_name, num_result, num_final)
+  elif search_type == 4:
     LinkedinCrawl  = LinkedInCrawler(GoogleSearcher, parameters)
     current_folder = LinkedinCrawl.run(PDFCrawl, ArticleCrawl, project_name, num_final)
+
   if parameters['is_colab']:
     print(f'\nResults are in folder    : {str(current_folder).split("MyDrive")[1]}')
     print(f'Stats report is in folder: {str(stats_file).split("MyDrive")[1]}')

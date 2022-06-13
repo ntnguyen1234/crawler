@@ -1,6 +1,6 @@
 import pathlib
 from pathlib import Path
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import fitz
 import sys
 import joblib
@@ -15,27 +15,34 @@ import string
 from itertools import groupby
 import shutil
 import traceback
-import selenium
-from selenium import webdriver
-from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.firefox.service import Service
-from webdriver_manager.firefox import GeckoDriverManager
+try:
+  import selenium
+  from selenium import webdriver
+  from selenium.webdriver.common.by import By
+  from selenium.common.exceptions import TimeoutException, NoSuchElementException
+  from selenium.webdriver.firefox.options import Options
+  from selenium.webdriver.firefox.service import Service
+  from webdriver_manager.firefox import GeckoDriverManager
+except Exception:
+  pass
 import time
 import json
 from multiprocessing import Manager
 import os
 from urllib.parse import urlencode, urlparse, parse_qs
-from pptx import Presentation
-from pptx.enum.shapes import MSO_SHAPE_TYPE
+import psutil
+import subprocess
+import pyautogui
 
-try:
-  import win32com.client
-except Exception:
-  pass
+# try:
+#   import win32com.client
+# except Exception:
+#   pass
 
 global today, current_time, special_domains
-today = date.today().strftime('%Y%m%d')
-current_time = datetime.now().strftime('[%Y%m%d-%H%M]')
+now = datetime.utcnow() + timedelta(hours=7)
+today        = now.strftime('%Y%m%d')
+current_time = now.strftime('[%Y%m%d-%H%M]')
 special_domains = [
   # 'crunchbase.com',
   # 'facebook.com',
@@ -59,37 +66,113 @@ def tqdm_joblib(tqdm_object):
         joblib.parallel.BatchCompletionCallBack = old_batch_callback
         tqdm_object.close()
 
-def set_folder(is_colab: bool, project_name: str, crawl_type: str, required: list):
-  if is_colab:
+def set_folder(parameters: dict, project_name: str, crawl_type: str):
+  if parameters['is_colab']:
     crawl_folder = Path.cwd().parents[0].joinpath(f'drive/MyDrive/Colab Notebooks/crawl_data/{project_name}')
   else:
     crawl_folder = Path.cwd().joinpath(f'{project_name}')
   crawltype_folder = crawl_folder.joinpath(f'{crawl_type}')
   crawltype_folder.mkdir(parents=True, exist_ok=True)
 
-  required_name = ' - '.join([r.replace('"', '') for r in required])
-  required_folder = crawltype_folder.joinpath(f'{current_time} {required_name}')
+  required_name = ' - '.join([r.replace('"', '') for r in parameters['required']])
+  if parameters['das'][0]:
+    required_folder = crawltype_folder.joinpath(f'{current_time} {required_name}')
+  else: 
+    required_folder = crawltype_folder.joinpath(f'{current_time} {required_name} - no attributes')
   required_folder.mkdir(parents=True, exist_ok=True)
   return required_folder, required_name
 
-def convertppt(ppt_target_file, ext):
-  file_type  = {
-    'pdf' : 32,
-    'pptx': 24,
-  }
-  file_path = Path(ppt_target_file).resolve()
-  out_file = file_path.parent / file_path.stem
-  powerpoint = win32com.client.Dispatch("Powerpoint.Application")
-  pdf = powerpoint.Presentations.Open(file_path, WithWindow=False)
-  pdf.SaveAs(out_file, file_type[ext])
-  pdf.Close()
-  powerpoint.Quit()
-  return
+# def convertppt(ppt_target_file, ext, out_file=None, delay: int=0):
+#   file_type  = {
+#     'pdf' : 32,
+#     'pptx': 24,
+#   }
+#   file_path = Path(ppt_target_file).resolve()
+#   if out_file == None:
+#     out_file = file_path.parent / file_path.stem
+#   powerpoint = win32com.client.Dispatch("Powerpoint.Application")
+#   out = powerpoint.Presentations.Open(file_path, WithWindow=False)
+#   time.sleep(delay)
+#   out.SaveAs(out_file, file_type[ext])
+#   out.Close()
+#   powerpoint.Quit()
+#   return
 
-def readwrite_pdf(content, current_folder, i: int, url: dict):
+# def save_pptx(ppt_path, content, delay: int=0):
+#   with open(ppt_path, 'wb') as fb:
+#     fb.write(content)
+#   time.sleep(delay)
+#   convertppt(ppt_path, 'pptx', delay=delay)
+
+# def readwrite_ppt(content, content_text, current_folder, i: int, url: dict):
+#   file_name = f'{i+1} - {url["title"]}'
+#   ppt_info = {
+#     'url'     : url['url'],
+#     'counter' : url['counter'],
+#     'title'   : url['title'],
+#     'date'    : url['date'],
+#     'location': current_folder.joinpath(f'{file_name}.pptx')
+#   }
+#   if content_text.startswith('PK'):
+#     with open(ppt_info['location'], 'wb') as fb:
+#       fb.write(content)
+#   else:
+#     ppt_path = current_folder.joinpath(f'{file_name}.ppt')
+#     delay = 0
+#     while delay <= 3:
+#       try: 
+#         save_pptx(ppt_path, content, delay=delay)
+#         break
+#       except Exception:
+#         if delay >= 3:
+#           print(f'\n\nsave_pptx ==========================================\n\n{url}\n\n')
+#           print(traceback.format_exc())
+#           print('========================================================\n')
+#           return None
+#         else: delay += 3
+#     ppt_path.unlink()
+#   time.sleep(3)
+#   prs = Presentation(ppt_info['location'])
+  
+#   ppt_info['num_page'] = len(prs.slides)
+#   # if ppt_info['title'] == '':
+#   #   file_save = f'{i+1}'
+#   # else:
+#   #   file_save = f'{i+1}. {ppt_info["title"]}'
+#   # file_location = current_folder.joinpath(f'{file_save}.pptx')
+#   # ppt_info['location'] = pptx_path
+
+#   ppt_info['num_img'] = 0
+#   for slide in prs.slides:
+#     for shape in slide.shapes:
+#       types = [
+#         MSO_SHAPE_TYPE.CHART, 
+#         MSO_SHAPE_TYPE.DIAGRAM,
+#         MSO_SHAPE_TYPE.PICTURE,
+#       ]
+#       try:
+#         if shape.shape_type in types:
+#           if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
+#             width, height = shape.image.size
+#             if width > 200 and height > 200: ppt_info['num_img'] += 1
+#           else: ppt_info['num_img'] += 1
+#       except Exception:
+#         print(f'\n\nget_ppt_shape ==========================================\n\n{url}\n\n')
+#         print(traceback.format_exc())
+#         print('========================================================\n')
+#   ppt_info['img_ratio'] = ppt_info['num_img']/ppt_info['num_page']
+#   return ppt_info
+
+def readwrite_pdf(content, current_folder, i: int, url: dict, keywords: list=[]):
+  content_text = ''
   with fitz.open(stream=content) as doc:
     num_page = doc.page_count
     info = doc.metadata
+    if keywords:
+      for page in doc:
+        content_text += ' '.join(' '.join(page.get_text('text').split('\n')).split()) + ' '
+      keywords_count = sum([content_text.lower().count(key.replace('"', '').lower()) for key in keywords])
+    else: keywords_count = 0
 
   if doc.metadata and doc.metadata['creationDate'] != '':
     dt = datetime.strptime(info['creationDate'][:10], 'D:%Y%m%d')
@@ -100,17 +183,18 @@ def readwrite_pdf(content, current_folder, i: int, url: dict):
   pdf_info = {
     'url'       : url['url'],
     'counter'   : url['counter'],
+    'keywords'  : keywords_count,
     'num_page'  : int(num_page),
-    'title'     : info['title'] if info['title'] != '' else url['title'],
+    'title'     : replace_name(info['title'], current_folder) if info['title'] != '' else url['title'],
     'date'      : dt,
     'num_img'   : 0,
     'total_size': 0,
   }
-  
+
   if pdf_info['title'] == '' or 'title' not in info or info['title'] == '':
     file_save = f'{i+1}'
   else:
-    file_save = f'{i+1}. {replace_name(pdf_info["title"], current_folder)}'
+    file_save = f'{i+1}. {pdf_info["title"]}'
   file_location = current_folder.joinpath(f'{file_save}.pdf')
   pdf_info['location'] = file_location
 
@@ -129,40 +213,6 @@ def readwrite_pdf(content, current_folder, i: int, url: dict):
   pdf_info['size_ratio'] = pdf_info['total_size']/(pdf_info['num_img'] + 1e-6)
   return pdf_info
 
-def readwrite_ppt(content, content_text, current_folder, i: int, url: dict):
-  ppt_path = current_folder.joinpath(f'{i}.pptx')
-  if content_text.startswith('PK'):
-    with open(ppt_path, 'wb') as fb:
-      fb.write(content)
-  else:
-    with open(ppt_path, 'wb') as fb:
-      fb.write(content)
-    convertppt(ppt_path, 'pptx')
-    ppt_path.unlink()
-  prs = Presentation(ppt_path)
-  ppt_info['num_img'] = 0
-  for slide in prs.slides:
-    for shape in slide.shapes:
-      types = [
-        MSO_SHAPE_TYPE.CHART, 
-        MSO_SHAPE_TYPE.DIAGRAM,
-        MSO_SHAPE_TYPE.PICTURE,
-      ]
-      if shape.shape_type in types:
-        if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
-          width, height = shape.image.size
-          if width > 200 and height > 200: ppt_info['num_img'] += 1
-        else: ppt_info['num_img'] += 1
-  ppt_info = {
-    'url'     : url['url'],
-    'counter' : url['counter'],
-    'title'   : url['title'],
-    'date'    : url['date'],
-    'num_page': len(prs.slides),
-  }
-  ppt_info['img_ratio'] = ppt_info['num_img']/ppt_info['num_page']
-  return ppt_info
-
 def readwrite_article(url: dict, details: dict, content_text=None):
   if content_text == None:
     content_text = url['content_text']
@@ -179,7 +229,7 @@ def readwrite_article(url: dict, details: dict, content_text=None):
   content_raw = BeautifulSoup(article['plain_content'], features='lxml')
 
   # Extract text file
-  ps = unique(content_raw.select('p, h1, h2, h3'))
+  ps = unique(content_raw.select('p'))
 
   # List of all sentences
   sentences = []
@@ -271,6 +321,7 @@ def stats_output(url_dict):
     Score      : {url_dict["score"]}
     Img size   : {url_dict["total_size"]}
     Counter    : {url_dict["counter"]}
+    Keywords   : {url_dict["keywords"]}
     Page num   : {url_dict["num_page"]}
     Img num    : {url_dict["num_img"]}
     Img ratio  : {url_dict["img_ratio"]}
@@ -280,6 +331,7 @@ def stats_output(url_dict):
     return f"""({url_dict["url"]})
     Score     : {url_dict["score"]}
     Counter   : {url_dict["counter"]}
+    Keywords  : {url_dict["keywords"]}
     Page num  : {url_dict["num_page"]}
     Img num   : {url_dict["num_img"]}
     Img ratio : {url_dict["img_ratio"]}
@@ -306,7 +358,7 @@ def loop_input(command):
     if user_input != '':
       return user_input
 
-def replace_name(name: str, parent_folder) -> str:
+def replace_name(name: str, parent_folder='') -> str:
   length = 250 - len(str(parent_folder))
   return name[:length].replace('?','').replace(':','-').replace('/','-').replace('|','-').replace('\\','-').replace('"','').replace('\n','').replace('.','-')
 
@@ -327,4 +379,16 @@ def get_driver():
   options.add_argument("-profile")
   options.add_argument("C:\\Users\\Administrator\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles\\r1uc2bce.default")
   return webdriver.Firefox(service=Service(GeckoDriverManager().install()), options=options)
-  # self.driver = webdriver.Firefox(options=options)
+
+def string_contain(test_string, in_list, end_list: list=[]):
+  result = [el for el in in_list if el in test_string] + [el for el in end_list if test_string.endswith(el)]
+  return bool(result)
+
+def waitfor_process(proc_list: list, delay: int=10):
+  proc_running = True
+  while proc_running:
+    proc_running = False
+    for proc in psutil.process_iter():
+      if any(procstr in proc.name() for procstr in proc_list):
+        proc_running = True
+        time.sleep(delay)
