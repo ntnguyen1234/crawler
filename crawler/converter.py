@@ -91,19 +91,12 @@ class Converter:
     powerpoint.Quit()
     return
 
-  def convert_libre(self, folder, filetype, outdir=None):
-    if outdir == None: outdir = ''
-    else: outdir = f'--outdir "{outdir}" '
-
+  def convert_libre(self, folder, filetype):
     while True:
       if filetype == 'pptx':
-        # print(f'cd "{str(folder)}"; soffice --headless --convert-to {filetype} ./*.ppt')
-        # _ = subprocess.run(['powershell.exe', f'cd "{str(folder)}"; soffice --headless --convert-to {filetype} ./*.ppt'])
-        return subprocess.check_output(f'cd "{str(folder)}" & soffice --headless --convert-to {filetype} ./*.ppt', shell=True)
+        return subprocess.check_output(f'soffice --headless --convert-to {filetype} ./*.ppt', shell=True, cwd=folder)
       elif filetype == 'pdf':
-        # print(f'cd "{str(folder)}"; soffice --headless --convert-to {filetype} ./*.pptx')
-        # _ = subprocess.run(['powershell.exe', f'cd "{str(folder)}"; soffice --headless --convert-to {filetype} ./*.pptx'])
-        return subprocess.check_output(f'cd "{str(folder)}" & soffice --headless --convert-to {filetype} ./*.pptx', shell=True)
+        return subprocess.check_output(f'soffice --headless --convert-to {filetype} ./*.pptx', shell=True, cwd=folder)
 
   def convert(self, location, filetype, content=None, out_file=None):
     try:
