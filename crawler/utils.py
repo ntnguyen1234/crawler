@@ -23,6 +23,7 @@ try:
   from selenium.webdriver.firefox.options import Options
   from selenium.webdriver.firefox.service import Service
   from webdriver_manager.firefox import GeckoDriverManager
+  import pyautogui
 except Exception:
   pass
 import time
@@ -32,7 +33,6 @@ import os
 from urllib.parse import urlencode, urlparse, parse_qs
 import psutil
 import subprocess
-import pyautogui
 
 # try:
 #   import win32com.client
