@@ -13,18 +13,19 @@ class PDFCrawler(Crawler):
     return self.save_pdf(current_folder, temp_folder, urls_processing, required_name, num_final)
   
   def save_pdf(self, current_folder, temp_folder, urls_processing: dict, required_name: str, num_final: int=30):
-    temp_modified = [{f'{k}_normalized': t[k]/(max([te[k] for te in urls_processing['pdf']]) + 1e-6) for k in t.keys() if k not in ['url', 'title', 'date', 'location']} for t in urls_processing['pdf']]
+    print('Scoring PDFs...\n')
+    temp_modified = [{f'{k}_normalized': t[k]/max([te[k] for te in urls_processing['pdf']]) + 1e-6 for k in t.keys() if k not in ['url', 'title', 'date', 'location']} for t in urls_processing['pdf']]
     for tm, te in zip(temp_modified, urls_processing['pdf']):
       for k in te.keys():
         tm[k] = te[k]
       if len(self.parameters['das']) > 1:
         features = [tm[f'{k}_normalized'] for k in ['total_size', 'counter', 'keywords', 'num_page', 'num_img', 'img_ratio', 'size_ratio']]
-        weights  = [0.1, 0.4, 0.1, 0.1, 0.1, 0.1, 0.1]
-        tm['score'] = tm['num_img_normalized']*tm['keywords_normalized']*tm['counter_normalized']*sum([w*f for w,f in zip(weights, features)])
+        weights  = [0.1, 0.1, 0.4, 0.1, 0.1, 0.1, 0.1]
+        tm['score'] = tm['num_img_normalized']*tm['counter_normalized']*sum([w*f for w,f in zip(weights, features)])
       else:
         features = [tm[f'{k}_normalized'] for k in ['total_size', 'keywords', 'num_page', 'num_img', 'img_ratio', 'size_ratio']]
-        weights  = [0.1, 0.1, 0.1, 0.5, 0.1, 0.1]
-        tm['score'] = tm['num_img_normalized']*tm['keywords_normalized']*sum([w*f for w,f in zip(weights, features)])
+        weights  = [0.1, 0.5, 0.1, 0.1, 0.1, 0.1]
+        tm['score'] = tm['num_img_normalized']*sum([w*f for w,f in zip(weights, features)])
 
     urls_sort = (sorted(temp_modified, key = lambda k: (-k['score'], -k['counter'])))
     length = min(num_final, len(urls_sort))
@@ -32,7 +33,7 @@ class PDFCrawler(Crawler):
     stats_file = current_folder.joinpath(f'{current_time} {required_name} - stats report.txt')
     check_file(stats_file)
 
-    out_text = f'F0 keywords     = {", ".join(self.parameters["required"])}\nDeck Attributes = {", ".join(self.parameters["das"])}\n\n'
+    out_text = f'F0 keywords     = {", ".join(self.parameters["required"])}\nDeck Attributes = {", ".join(self.parameters["das"])}\nFilter keywords = {", ".join(self.parameters["filters"])}\n\n'
     for i, url in tqdm(enumerate(urls_sort[:length]), desc='Saving PDF results...', total=length):
       if url['title'] == '' or url['title'] == None:
         file_save = f'{i+1}.pdf'

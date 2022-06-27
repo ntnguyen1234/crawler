@@ -17,26 +17,44 @@ def main():
   required_str = loop_input('\nF0 keywords. Put "," between each keyword (i.e alternative protein):')
   parameters['required'] = required_str.replace(', ',',').split(',')
 
-  das_default = 'market, revenue, valuation, growth, business model, customer, benefit, position, competitor'
-  print(f'\nDeck Attributes. Put "," between attribute (i.e market, revenue)\nExamples are "{das_default}":')
-  # das_str = default_input(das_default, str)
+  das_default = 'market, revenue, valuation, growth, business model, customer, benefit, positioning, competitor'
+  print(f'\nDeck Attributes. Put "," between each attribute (i.e market, revenue)\nExamples are "{das_default}":')
   das_str = input('>>> ')
+
+  print('\nNumber of pages in each search. Default is 1. Press Enter to leave as default.')
+  parameters['num_page']  = default_input(1, int)
+
   if len(das_str.split()) == 0 and len(das_str.split(',')) == 0:
     parameters['das'] = ['']
   else:
     parameters['das'] = das_str.replace(', ',',').split(',')
 
+  GoogleSearcher = Serper('google', parameters)
+  total_searches = GoogleSearcher.get_total_searches()
+  max_searches   = len(parameters['required']) * len(parameters['das']) * parameters['num_page'] * 4
+  if search_type == 3:
+    max_searches *= 2
+  if total_searches < max_searches:
+    sys.exit(f'\nYou might lack {max_searches - total_searches} API searches. Please add or renew another API.')
+
+  required_filter = required_str.replace('"', '')
+  print(f'\nKeywords to filter. Put "," between each filter keyword. Default is "{required_filter}":')
+  filter_str = input('>>> ')
+  if filter_str:
+    parameters['filters'] = filter_str.replace(', ',',').split(',')
+  else:
+    parameters['filters'] = parameters['required']
+
   print('\nNumber of results in each search. Default is 40. Press Enter to leave as default.')
   num_result = default_input(40, int)
 
-  print('\nNumber of final files. Default is 30. Press Enter to leave as default.')
-  num_final = default_input(30, int)
+  print('\nNumber of final files. Default is 50. Press Enter to leave as default.')
+  num_final = default_input(50, int)
 
-  GoogleSearcher = Serper('google')
-  GoogleSearcher.api_key = parameters['api_key']
+  print('')
   PDFCrawl     = PDFCrawler(GoogleSearcher, parameters)
-  ArticleCrawl = ArticleCrawler(GoogleSearcher, parameters)
   PPTCrawl     = PPTCrawler(GoogleSearcher, parameters)
+  ArticleCrawl = ArticleCrawler(GoogleSearcher, parameters)
 
   if search_type == 1:
     current_folder, stats_file = PDFCrawl.pdf_collect(project_name, num_result, num_final)

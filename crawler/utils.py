@@ -33,11 +33,7 @@ import os
 from urllib.parse import urlencode, urlparse, parse_qs
 import psutil
 import subprocess
-
-# try:
-#   import win32com.client
-# except Exception:
-#   pass
+import requests
 
 global today, current_time, special_domains
 now = datetime.utcnow() + timedelta(hours=7)
@@ -82,87 +78,6 @@ def set_folder(parameters: dict, project_name: str, crawl_type: str):
   required_folder.mkdir(parents=True, exist_ok=True)
   return required_folder, required_name
 
-# def convertppt(ppt_target_file, ext, out_file=None, delay: int=0):
-#   file_type  = {
-#     'pdf' : 32,
-#     'pptx': 24,
-#   }
-#   file_path = Path(ppt_target_file).resolve()
-#   if out_file == None:
-#     out_file = file_path.parent / file_path.stem
-#   powerpoint = win32com.client.Dispatch("Powerpoint.Application")
-#   out = powerpoint.Presentations.Open(file_path, WithWindow=False)
-#   time.sleep(delay)
-#   out.SaveAs(out_file, file_type[ext])
-#   out.Close()
-#   powerpoint.Quit()
-#   return
-
-# def save_pptx(ppt_path, content, delay: int=0):
-#   with open(ppt_path, 'wb') as fb:
-#     fb.write(content)
-#   time.sleep(delay)
-#   convertppt(ppt_path, 'pptx', delay=delay)
-
-# def readwrite_ppt(content, content_text, current_folder, i: int, url: dict):
-#   file_name = f'{i+1} - {url["title"]}'
-#   ppt_info = {
-#     'url'     : url['url'],
-#     'counter' : url['counter'],
-#     'title'   : url['title'],
-#     'date'    : url['date'],
-#     'location': current_folder.joinpath(f'{file_name}.pptx')
-#   }
-#   if content_text.startswith('PK'):
-#     with open(ppt_info['location'], 'wb') as fb:
-#       fb.write(content)
-#   else:
-#     ppt_path = current_folder.joinpath(f'{file_name}.ppt')
-#     delay = 0
-#     while delay <= 3:
-#       try: 
-#         save_pptx(ppt_path, content, delay=delay)
-#         break
-#       except Exception:
-#         if delay >= 3:
-#           print(f'\n\nsave_pptx ==========================================\n\n{url}\n\n')
-#           print(traceback.format_exc())
-#           print('========================================================\n')
-#           return None
-#         else: delay += 3
-#     ppt_path.unlink()
-#   time.sleep(3)
-#   prs = Presentation(ppt_info['location'])
-  
-#   ppt_info['num_page'] = len(prs.slides)
-#   # if ppt_info['title'] == '':
-#   #   file_save = f'{i+1}'
-#   # else:
-#   #   file_save = f'{i+1}. {ppt_info["title"]}'
-#   # file_location = current_folder.joinpath(f'{file_save}.pptx')
-#   # ppt_info['location'] = pptx_path
-
-#   ppt_info['num_img'] = 0
-#   for slide in prs.slides:
-#     for shape in slide.shapes:
-#       types = [
-#         MSO_SHAPE_TYPE.CHART, 
-#         MSO_SHAPE_TYPE.DIAGRAM,
-#         MSO_SHAPE_TYPE.PICTURE,
-#       ]
-#       try:
-#         if shape.shape_type in types:
-#           if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
-#             width, height = shape.image.size
-#             if width > 200 and height > 200: ppt_info['num_img'] += 1
-#           else: ppt_info['num_img'] += 1
-#       except Exception:
-#         print(f'\n\nget_ppt_shape ==========================================\n\n{url}\n\n')
-#         print(traceback.format_exc())
-#         print('========================================================\n')
-#   ppt_info['img_ratio'] = ppt_info['num_img']/ppt_info['num_page']
-#   return ppt_info
-
 def readwrite_pdf(content, current_folder, i: int, url: dict, keywords: list=[]):
   content_text = ''
   with fitz.open(stream=content) as doc:
@@ -172,7 +87,8 @@ def readwrite_pdf(content, current_folder, i: int, url: dict, keywords: list=[])
       for page in doc:
         content_text += ' '.join(' '.join(page.get_text('text').split('\n')).split()) + ' '
       keywords_count = sum([content_text.lower().count(key.replace('"', '').lower()) for key in keywords])
-    else: keywords_count = 0
+      if keywords_count == 0: keywords_count += 0.1
+    else: keywords_count = 0.1
 
   if doc.metadata and doc.metadata['creationDate'] != '':
     dt = datetime.strptime(info['creationDate'][:10], 'D:%Y%m%d')

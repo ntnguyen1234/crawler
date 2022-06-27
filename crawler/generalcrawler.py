@@ -12,7 +12,7 @@ class Crawler:
     self.parameters = parameters
     self.converter  = Converter(self.parameters)
 
-  def crawl_pages(self, pages, urls: list, num_page: int=1) -> list:
+  def crawl_pages(self, pages, urls: list) -> list:
     urls_temp  = []
     count_page = 1
     for result in pages:
@@ -27,7 +27,8 @@ class Crawler:
         if 'date' in organic_result.keys():
           published_date = organic_result['date'].split(', ')[-1]
           if published_date.isnumeric():
-            url['date'] = organic_result['date']
+            if int(published_date) < self.searcher.year: continue
+            else: url['date'] = organic_result['date']
           else:
             url['date'] = ''
         else:
@@ -36,10 +37,10 @@ class Crawler:
         urls_temp.append(url)
 
       count_page += 1
-      if count_page > num_page: break
+      if count_page > self.parameters['num_page']: break
     return urls_temp
 
-  def search(self, query: str='', num_result: int=40, num_page: int=1) -> list:
+  def search(self, query: str='', num_result: int=40) -> list:
     urls = []
     for req in self.parameters['required']:
       for da in self.parameters['das']:
@@ -49,7 +50,7 @@ class Crawler:
           q = f'{req} "{da}"{query}'
         print(q)
         pages = self.searcher.normal(q, num_result)
-        urls_temp = self.crawl_pages(pages, urls, num_page)
+        urls_temp = self.crawl_pages(pages, urls)
         times = 0
         while len(urls_temp) == 0:
           if times == 0:
@@ -161,7 +162,7 @@ class Crawler:
         pps_suffixes = ['.ppsx?', '.ppsx&', '.ppsx#']
         if content_text.startswith('%PDF-'):
           if types['crawl_type'] != 'article':
-            pdf_info = readwrite_pdf(content, current_folder, i, url, self.parameters['required'])
+            pdf_info = readwrite_pdf(content, current_folder, i, url, self.parameters['filters'])
             urls_processing['pdf'].append(pdf_info)
         elif (content_text.startswith('PK') and not string_contain(url['url'], pps_suffixes, ['.ppsx'])) or string_contain(url['url'], ppt_suffixes, ['.ppt']):
           if types['crawl_type'] != 'article':
