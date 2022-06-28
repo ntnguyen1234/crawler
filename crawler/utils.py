@@ -8,7 +8,6 @@ import contextlib
 from tqdm import tqdm
 from joblib import Parallel, delayed
 import nltk
-from readabilipy import simple_json_from_html_string
 import bs4
 from bs4 import BeautifulSoup
 import string
@@ -24,6 +23,7 @@ try:
   from selenium.webdriver.firefox.service import Service
   from webdriver_manager.firefox import GeckoDriverManager
   import pyautogui
+  from readabilipy import simple_json_from_html_string
 except Exception:
   pass
 import time
