@@ -1,11 +1,11 @@
 from crawler.utils import *
-from pptx import Presentation
-from pptx.enum.shapes import MSO_SHAPE_TYPE
 try:
   import win32com.client
   import pythoncom
   from asposeslidescloud.apis.slides_api import SlidesApi
   from asposeslidescloud.models.export_format import ExportFormat
+  from pptx import Presentation
+  from pptx.enum.shapes import MSO_SHAPE_TYPE
 except Exception:
   pass
 
