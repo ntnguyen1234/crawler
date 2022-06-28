@@ -1,7 +1,10 @@
 from crawler.generalcrawler import Crawler
 from crawler.searcher import Serper
 from crawler.utils import *
-import pdfkit
+try:
+  import pdfkit
+except Exception:
+  pass
 
 class ArticleCrawler(Crawler):
   def __init__(self, searcher: Serper, parameters: dict):
