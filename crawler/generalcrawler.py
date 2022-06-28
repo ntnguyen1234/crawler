@@ -4,7 +4,10 @@ from crawler.converter import Converter
 from crawler.utils import *
 import urllib3
 import urllib.parse
-from scrapingbee import ScrapingBeeClient
+try:
+  from scrapingbee import ScrapingBeeClient
+except Exception:
+  pass
 
 class Crawler:
   def __init__(self, searcher: Serper, parameters: dict):
