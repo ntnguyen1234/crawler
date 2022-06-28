@@ -9,7 +9,7 @@ def main():
 
   project_name = loop_input('\nProject name (i.e. emmay):')
 
-  print('\nWhich type you want to search? Choose number \n1. PDF (default) \n2. Article \n3. Powerpoint \n4. LinkedIn (not available)\nPress Enter to leave as default.')
+  print('\nWhich type you want to search? Choose number \n1. PDF (default) \n2. Article \n3. Powerpoint (not available) \n4. LinkedIn (not available)\nPress Enter to leave as default.')
   search_type = 0
   while search_type not in range(1,5):
     search_type = default_input(1, int)
