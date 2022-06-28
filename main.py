@@ -4,7 +4,7 @@ from crawler.pptcrawler import PPTCrawler
 def main():
   with open(Path.cwd().parents[0].joinpath('parameters.json'), 'r') as fr:
     parameters = json.load(fr)
-  nltk.download('punkt')
+  nltk.download('punkt', quiet=True)
   os.environ['GH_TOKEN'] = parameters['GH_TOKEN']
 
   project_name = loop_input('\nProject name (i.e. emmay):')
