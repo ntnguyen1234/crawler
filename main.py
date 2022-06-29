@@ -31,7 +31,7 @@ def main():
 
   GoogleSearcher = Serper('google', parameters)
   total_searches = GoogleSearcher.get_total_searches()
-  print(f'\nThere are {total_searches} searches left')
+  print(f'\nThere are {total_searches} searches left\n')
   max_searches   = len(parameters['required']) * len(parameters['das']) * parameters['num_page'] * 4
   if search_type == 3: max_searches *= 2
   if total_searches < max_searches:
