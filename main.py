@@ -31,9 +31,9 @@ def main():
 
   GoogleSearcher = Serper('google', parameters)
   total_searches = GoogleSearcher.get_total_searches()
+  print(f'\nThere are {total_searches} searches left')
   max_searches   = len(parameters['required']) * len(parameters['das']) * parameters['num_page'] * 4
-  if search_type == 3:
-    max_searches *= 2
+  if search_type == 3: max_searches *= 2
   if total_searches < max_searches:
     sys.exit(f'\nYou might lack {max_searches - total_searches} API searches. Please add or renew another API.')
 
@@ -48,8 +48,8 @@ def main():
   print('\nNumber of results in each search. Default is 40. Press Enter to leave as default.')
   num_result = default_input(40, int)
 
-  print('\nNumber of final files. Default is 50. Press Enter to leave as default.')
-  num_final = default_input(50, int)
+  print('\nNumber of final files. Default is 100. Press Enter to leave as default.')
+  num_final = default_input(100, int)
 
   print('')
   PDFCrawl     = PDFCrawler(GoogleSearcher, parameters)
