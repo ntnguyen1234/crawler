@@ -1,6 +1,7 @@
 from urllib import request
 from serpapi import GoogleSearch
 from crawler.utils import *
+import random
 
 class Serper:
   def __init__(self, engine: str, parameters: dict):
@@ -28,12 +29,12 @@ class Serper:
     return sum(all_searches)
 
   def search(self, q: str, num_result: int=None, tbs: str=None):
-    api_key = ''
+    api_keys = []
     for key in self.api_keys:
       info = self.account_info(f'https://serpapi.com/account?api_key={key}')
       if info['total_searches_left'] > 0:
-        api_key = key
-        break
+        api_keys.append(key)
+    api_key = random.choice(api_keys)
     params = {
       'engine' : self.engine,
       'api_key': api_key,
