@@ -33,7 +33,7 @@ def main():
     parameters['das'] = das_str.replace(', ',',').split(',')
 
   GoogleSearcher = Serper('google', parameters)
-  # total_searches = GoogleSearcher.get_total_searches()
+  _ = GoogleSearcher.get_total_searches()
   # print(f'\nThere are {total_searches} searches left\n')
 
   # max_searches   = len(parameters['required']) * len(parameters['das']) * (int((num_result - 10)/20) + 2)
