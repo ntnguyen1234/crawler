@@ -34,6 +34,7 @@ from urllib.parse import urlencode, urlparse, parse_qs
 import psutil
 import subprocess
 import requests
+import re
 
 global today, current_time, special_domains
 now = datetime.utcnow() + timedelta(hours=7)
@@ -78,17 +79,21 @@ def set_folder(parameters: dict, project_name: str, crawl_type: str):
   required_folder.mkdir(parents=True, exist_ok=True)
   return required_folder, required_name
 
-def readwrite_pdf(content, current_folder, i: int, url: dict, keywords: list=[]):
+def readwrite_pdf(content, current_folder, idx: int, url: dict, keywords_list: list=[]):
   content_text = ''
+  count_list = []
   with fitz.open(stream=content) as doc:
     num_page = doc.page_count
     info = doc.metadata
-    if keywords:
-      for page in doc:
-        content_text += ' '.join(' '.join(page.get_text('text').split('\n')).split()) + ' '
-      keywords_count = sum([content_text.lower().count(key.replace('"', '').lower()) for key in keywords])
-      if keywords_count == 0: keywords_count += 0.1
-    else: keywords_count = 0.1
+    if keywords_list:
+      for keywords in keywords_list:
+        content_list = []
+        for page in doc:
+          content_list.append(' '.join(' '.join(page.get_text('text').split('\n')).split()))
+        content_text = ' '.join(content_list)
+        keywords_count = sum([content_text.lower().count(key.replace('"', '').lower()) for key in keywords]) + 1e-3
+        count_list.append(keywords_count)
+    else: count_list = [1e-3]
 
   if doc.metadata and doc.metadata['creationDate'] != '':
     dt = datetime.strptime(info['creationDate'][:10], 'D:%Y%m%d')
@@ -99,7 +104,6 @@ def readwrite_pdf(content, current_folder, i: int, url: dict, keywords: list=[])
   pdf_info = {
     'url'       : url['url'],
     'counter'   : url['counter'],
-    'keywords'  : keywords_count,
     'num_page'  : int(num_page),
     'title'     : replace_name(info['title'], current_folder) if info['title'] != '' else url['title'],
     'date'      : dt,
@@ -107,10 +111,13 @@ def readwrite_pdf(content, current_folder, i: int, url: dict, keywords: list=[])
     'total_size': 0,
   }
 
+  for i, keyword_count in enumerate(count_list):
+    pdf_info[f'keywords_{i}'] = keyword_count
+
   if pdf_info['title'] == '' or 'title' not in info or info['title'] == '':
-    file_save = f'{i+1}'
+    file_save = f'{idx+1}'
   else:
-    file_save = f'{i+1}. {pdf_info["title"]}'
+    file_save = f'{idx+1}. {pdf_info["title"]}'
   file_location = current_folder.joinpath(f'{file_save}.pdf')
   pdf_info['location'] = file_location
 
@@ -124,8 +131,11 @@ def readwrite_pdf(content, current_folder, i: int, url: dict, keywords: list=[])
         if img_info['height'] < 200 or img_info['width'] < 200: continue
         base_image = pdf_file.extract_image(img[0])
         pdf_info['num_img']    += 1
-        pdf_info['total_size'] += sys.getsizeof(base_image['image'])
-  pdf_info['img_ratio' ] = pdf_info['num_img']/pdf_info['num_page']
+        try:
+          pdf_info['total_size'] += sys.getsizeof(base_image['image'])
+        except TypeError:
+          continue
+  pdf_info['img_ratio' ] = pdf_info['num_img']/(pdf_info['num_page'] + 1e-6)
   pdf_info['size_ratio'] = pdf_info['total_size']/(pdf_info['num_img'] + 1e-6)
   return pdf_info
 
@@ -231,13 +241,13 @@ def sort_urls(urls):
     urls_info.append(url)
   return (sorted(urls_info, key = lambda k: -k['counter']))
   
-def stats_output(url_dict):
+def stats_output(url_dict: dict):
   if 'total_size' in url_dict.keys():
     return f"""({url_dict["url"]})
     Score      : {url_dict["score"]}
     Img size   : {url_dict["total_size"]}
     Counter    : {url_dict["counter"]}
-    Keywords   : {url_dict["keywords"]}
+    Keywords   : {[url_dict[key] for key in url_dict.keys() if (key.startswith('keywords') and not key.endswith('normalized'))]}
     Page num   : {url_dict["num_page"]}
     Img num    : {url_dict["num_img"]}
     Img ratio  : {url_dict["img_ratio"]}
@@ -247,7 +257,7 @@ def stats_output(url_dict):
     return f"""({url_dict["url"]})
     Score     : {url_dict["score"]}
     Counter   : {url_dict["counter"]}
-    Keywords  : {url_dict["keywords"]}
+    Keywords  : {[url_dict[key] for key in url_dict.keys() if key.startswith('keywords')]}
     Page num  : {url_dict["num_page"]}
     Img num   : {url_dict["num_img"]}
     Img ratio : {url_dict["img_ratio"]}

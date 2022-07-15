@@ -21,8 +21,11 @@ def main():
   print(f'\nDeck Attributes. Put "," between each attribute (i.e market, revenue)\nExamples are "{das_default}":')
   das_str = input('>>> ')
 
-  print('\nNumber of pages in each search. Default is 1. Press Enter to leave as default.')
-  parameters['num_page']  = default_input(1, int)
+  print('\nNumber of results in each search. Default is 100. Press Enter to leave as default.')
+  num_result = default_input(100, int)
+
+  print('\nNumber of final files. Default is 100. Press Enter to leave as default.')
+  num_final = default_input(100, int)
 
   if len(das_str.split()) == 0 and len(das_str.split(',')) == 0:
     parameters['das'] = ['']
@@ -32,24 +35,20 @@ def main():
   GoogleSearcher = Serper('google', parameters)
   total_searches = GoogleSearcher.get_total_searches()
   print(f'\nThere are {total_searches} searches left\n')
-  max_searches   = len(parameters['required']) * len(parameters['das']) * parameters['num_page'] * 4
+
+  max_searches   = len(parameters['required']) * len(parameters['das']) * (int((num_result - 10)/20) + 2)
   if search_type == 3: max_searches *= 2
   if total_searches < max_searches:
-    sys.exit(f'\nYou might lack {max_searches - total_searches} API searches. Please add or renew another API.')
+    print(f'\nWarning! You might lack {max_searches - total_searches} API searches. Please add or renew another API.')
 
   required_filter = required_str.replace('"', '')
-  print(f'\nKeywords to filter. Put "," between each filter keyword. Default is "{required_filter}":')
+  print(f'\nKeywords to filter. Default is "{required_filter}".\nPut "," between each filter keyword.\nPut ";" between each list of the same type of filter keywords. ')
   filter_str = input('>>> ')
   if filter_str:
-    parameters['filters'] = filter_str.replace(', ',',').split(',')
+    # parameters['filters'] = filter_str.replace(', ',',').split(',')
+    parameters['filters'] = [f_str.replace(', ', ',').split(',') for f_str in filter_str.replace('; ', ';').split(';')]
   else:
-    parameters['filters'] = parameters['required']
-
-  print('\nNumber of results in each search. Default is 40. Press Enter to leave as default.')
-  num_result = default_input(40, int)
-
-  print('\nNumber of final files. Default is 100. Press Enter to leave as default.')
-  num_final = default_input(100, int)
+    parameters['filters'] = [parameters['required']]
 
   print('')
   PDFCrawl     = PDFCrawler(GoogleSearcher, parameters)

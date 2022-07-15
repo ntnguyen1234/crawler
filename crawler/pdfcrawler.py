@@ -18,14 +18,14 @@ class PDFCrawler(Crawler):
     for tm, te in zip(temp_modified, urls_processing['pdf']):
       for k in te.keys():
         tm[k] = te[k]
+      features = [tm[f'{k}_normalized'] for k in ['total_size', 'num_page', 'img_ratio', 'size_ratio']]
+      weights  = [0.25, 0.25, 0.25, 0.25]
+      tm['score'] = tm['num_img_normalized']*sum([w*f for w,f in zip(weights, features)])
       if len(self.parameters['das']) > 1:
-        features = [tm[f'{k}_normalized'] for k in ['total_size', 'counter', 'keywords', 'num_page', 'num_img', 'img_ratio', 'size_ratio']]
-        weights  = [0.1, 0.1, 0.4, 0.1, 0.1, 0.1, 0.1]
-        tm['score'] = tm['num_img_normalized']*tm['counter_normalized']*sum([w*f for w,f in zip(weights, features)])
-      else:
-        features = [tm[f'{k}_normalized'] for k in ['total_size', 'keywords', 'num_page', 'num_img', 'img_ratio', 'size_ratio']]
-        weights  = [0.1, 0.5, 0.1, 0.1, 0.1, 0.1]
-        tm['score'] = tm['num_img_normalized']*sum([w*f for w,f in zip(weights, features)])
+        tm['score'] *= tm['counter_normalized']
+      for key in tm.keys():
+        if (key.startswith('keywords') and key.endswith('normalized')):
+          tm['score'] *= tm[key]
 
     urls_sort = (sorted(temp_modified, key = lambda k: (-k['score'], -k['counter'])))
     length = min(num_final, len(urls_sort))
@@ -33,7 +33,8 @@ class PDFCrawler(Crawler):
     stats_file = current_folder.joinpath(f'{current_time} {required_name} - stats report.txt')
     check_file(stats_file)
 
-    out_text = f'F0 keywords     = {", ".join(self.parameters["required"])}\nDeck Attributes = {", ".join(self.parameters["das"])}\nFilter keywords = {", ".join(self.parameters["filters"])}\n\n'
+    # out_text = f'F0 keywords     = {", ".join(self.parameters["required"])}\nDeck Attributes = {", ".join(self.parameters["das"])}\nFilter keywords = {", ".join(self.parameters["filters"])}\n\n'
+    out_text = f'F0 keywords     = {", ".join(self.parameters["required"])}\nDeck Attributes = {", ".join(self.parameters["das"])}\nFilter keywords = {self.parameters["filters"]}\n\n'
     for i, url in tqdm(enumerate(urls_sort[:length]), desc='Saving PDF results...', total=length):
       if url['title'] == '' or url['title'] == None:
         file_save = f'{i+1}.pdf'

@@ -15,9 +15,8 @@ class Crawler:
     self.parameters = parameters
     self.converter  = Converter(self.parameters)
 
-  def crawl_pages(self, pages, urls: list) -> list:
-    urls_temp  = []
-    count_page = 1
+  def crawl_pages(self, pages) -> list:
+    urls = []
     for result in pages:
       print(f"Current page: {result['serpapi_pagination']['current']}\n")
 
@@ -37,11 +36,8 @@ class Crawler:
         else:
           url['date'] = ''
         urls.append(url)
-        urls_temp.append(url)
-
-      count_page += 1
-      if count_page > self.parameters['num_page']: break
-    return urls_temp
+      break
+    return urls
 
   def search(self, query: str='', num_result: int=40) -> list:
     urls = []
@@ -52,19 +48,41 @@ class Crawler:
         else:
           q = f'{req} "{da}"{query}'
         print(q)
-        pages = self.searcher.normal(q, num_result)
-        urls_temp = self.crawl_pages(pages, urls)
-        times = 0
+        num_temp = num_result
+        while num_temp >= 10:
+          pages = self.searcher.normal(q, num_temp)
+          urls_temp = self.crawl_pages(pages)
+          print(len(urls_temp), num_temp)
+          if len(urls_temp) == 0:
+            num_temp -= 20
+          else:
+            num_temp = 0
+
         while len(urls_temp) == 0:
-          if times == 0:
-            pages = self.searcher.normal(q, num_result=10)
-          elif times == 1:
-            pages = self.searcher.normal(q, num_result=num_result, has_tbs=False)
-          elif times == 2:
-            pages = self.searcher.normal(q, num_result=10, has_tbs=False)
-          else: break
-          urls_temp = self.crawl_pages(pages, urls)
-          times += 1
+          if num_temp == 0 and num_result > 10:
+            num_temp = 10
+            pages = self.searcher.normal(q, num_temp)
+            urls_temp = self.crawl_pages(pages)
+            print(len(urls_temp), num_temp)
+          else:
+            pages = self.searcher.normal(q, num_temp, has_tbs=False)
+            urls_temp = self.crawl_pages(pages)
+            print(len(urls_temp), num_temp)
+            break
+        urls += urls_temp
+        # pages = self.searcher.normal(q, num_result)
+        # urls_temp = self.crawl_pages(pages, urls)
+        # times = 0
+        # while len(urls_temp) == 0:
+        #   if times == 0:
+        #     pages = self.searcher.normal(q, num_result=10)
+        #   elif times == 1:
+        #     pages = self.searcher.normal(q, num_result=num_result, has_tbs=False)
+        #   elif times == 2:
+        #     pages = self.searcher.normal(q, num_result=10, has_tbs=False)
+        #   else: break
+        #   urls_temp = self.crawl_pages(pages, urls)
+        #   times += 1
     return urls
 
   def collect(self, search_urls: list, project_name: str, types: dict={'crawl_type': 'article'}):
