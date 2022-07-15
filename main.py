@@ -21,8 +21,8 @@ def main():
   print(f'\nDeck Attributes. Put "," between each attribute (i.e market, revenue)\nExamples are "{das_default}":')
   das_str = input('>>> ')
 
-  print('\nNumber of results in each search. Default is 100. Press Enter to leave as default.')
-  num_result = default_input(100, int)
+  print('\nNumber of results in each search. Default is 40. Press Enter to leave as default.')
+  num_result = default_input(40, int)
 
   print('\nNumber of final files. Default is 100. Press Enter to leave as default.')
   num_final = default_input(100, int)
@@ -33,13 +33,13 @@ def main():
     parameters['das'] = das_str.replace(', ',',').split(',')
 
   GoogleSearcher = Serper('google', parameters)
-  total_searches = GoogleSearcher.get_total_searches()
-  print(f'\nThere are {total_searches} searches left\n')
+  # total_searches = GoogleSearcher.get_total_searches()
+  # print(f'\nThere are {total_searches} searches left\n')
 
-  max_searches   = len(parameters['required']) * len(parameters['das']) * (int((num_result - 10)/20) + 2)
-  if search_type == 3: max_searches *= 2
-  if total_searches < max_searches:
-    print(f'\nWarning! You might lack {max_searches - total_searches} API searches. Please add or renew another API.')
+  # max_searches   = len(parameters['required']) * len(parameters['das']) * (int((num_result - 10)/20) + 2)
+  # if search_type == 3: max_searches *= 2
+  # if total_searches < max_searches:
+  #   print(f'\nWarning! You might lack {max_searches - total_searches} API searches. Please add or renew another API.')
 
   required_filter = required_str.replace('"', '')
   print(f'\nKeywords to filter. Default is "{required_filter}".\nPut "," between each filter keyword.\nPut ";" between each list of the same type of filter keywords. ')
